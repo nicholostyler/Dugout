@@ -1,0 +1,65 @@
+package nicholos.tyler.dugout.model.mapper
+
+import android.util.Log
+import nicholos.tyler.dugout.data.api.dto.GameFeedResponseDto
+import nicholos.tyler.dugout.data.api.dto.PlayDto
+import nicholos.tyler.dugout.model.domain.GameDetails
+import nicholos.tyler.dugout.model.domain.PlayItem
+
+fun GameFeedResponseDto.toGameDetails(gamePk: Int): GameDetails {
+    val gameData = gameData
+    val liveData = liveData
+    val linescore = liveData?.linescore
+    val plays = liveData?.plays?.allPlays.orEmpty()
+    val lastPlay = plays.lastOrNull()
+
+    val playList = plays
+        .map { it.toPlayItem() }
+        .reversed()
+
+    Log.d("help me","inningState=${linescore?.inningState} currentInning=${linescore?.currentInning} detailedState=${gameData?.status?.detailedState}"
+    )
+
+    android.util.Log.d(
+        "DUGOUT_FEED",
+        "inningState=${linescore?.inningState} currentInning=${linescore?.currentInning} detailedState=${gameData?.status?.detailedState}"
+    )
+
+    return GameDetails(
+        gamePk = gamePk,
+        awayTeam = gameData?.teams?.away?.name,
+        homeTeam = gameData?.teams?.home?.name,
+        awayTeamId = gameData?.teams?.away?.id ?: 0,
+        homeTeamId = gameData?.teams?.home?.id ?: 0,
+        awayScore = linescore?.teams?.away?.runs ?: 0,
+        homeScore = linescore?.teams?.home?.runs ?: 0,
+        status = gameData?.status?.detailedState,
+        venue = gameData?.venue?.name,
+        currentInning = linescore?.currentInning ?: 0,
+        inningState = linescore?.inningState,
+        awayProbablePitcher = gameData?.probablePitchers?.away?.fullName,
+        homeProbablePitcher = gameData?.probablePitchers?.home?.fullName,
+        lastPlayDescription = lastPlay?.result?.description,
+        lastPlayEvent = lastPlay?.result?.event,
+        balls = lastPlay?.count?.balls ?: 0,
+        strikes = lastPlay?.count?.strikes ?: 0,
+        outs = lastPlay?.count?.outs ?: 0,
+        currentBatter = lastPlay?.matchup?.batter?.fullName,
+        currentPitcher = lastPlay?.matchup?.pitcher?.fullName,
+        officialDate = gameData?.datetime?.officialDate,
+        startDateTime = gameData?.datetime?.dateTime,
+        plays = playList
+    )
+}
+
+fun PlayDto.toPlayItem(): PlayItem {
+    return PlayItem(
+        description = result?.description,
+        event = result?.event,
+        inning = about?.inning ?: 0,
+        isTopInning = about?.isTopInning ?: false,
+        batterName = matchup?.batter?.fullName,
+        pitcherName = matchup?.pitcher?.fullName,
+        batterId = matchup?.batter?.id,
+    )
+}

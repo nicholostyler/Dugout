@@ -1,0 +1,16 @@
+package nicholos.tyler.dugout.data.repository
+
+import nicholos.tyler.dugout.data.api.MlbApiService
+import nicholos.tyler.dugout.model.domain.LeagueStandings
+import nicholos.tyler.dugout.model.mapper.toDomain
+import java.time.LocalDate
+
+class LeagueRepository(
+    private val api: MlbApiService
+) {
+    suspend fun getLeagueStandings(
+        season: Int = LocalDate.now().year
+    ): LeagueStandings {
+        return api.getStandings(season = season).toDomain()
+    }
+}
