@@ -23,7 +23,12 @@ data class GameDetails(
     val currentPitcher: String? = null,
     val officialDate: String? = null,
     val startDateTime: String? = null,
-    val plays: List<PlayItem> = emptyList()
+    val plays: List<PlayItem> = emptyList(),
+    val awayHits: Int = 0,
+    val homeHits: Int = 0,
+    val awayErrors: Int = 0,
+    val homeErrors: Int = 0,
+    val innings: List<InningScore> = emptyList()
 ) {
     val inningDisplay: String
         get() = if (currentInning <= 0 || inningState.isNullOrBlank()) "" else "$inningState $currentInning"
@@ -31,3 +36,9 @@ data class GameDetails(
     val scoreDisplay: String
         get() = "$awayScore - $homeScore"
 }
+
+data class InningScore(
+    val number: Int,
+    val awayRuns: Int?,
+    val homeRuns: Int?
+)

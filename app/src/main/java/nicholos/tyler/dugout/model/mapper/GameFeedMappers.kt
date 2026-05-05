@@ -4,6 +4,7 @@ import android.util.Log
 import nicholos.tyler.dugout.data.api.dto.GameFeedResponseDto
 import nicholos.tyler.dugout.data.api.dto.PlayDto
 import nicholos.tyler.dugout.model.domain.GameDetails
+import nicholos.tyler.dugout.model.domain.InningScore
 import nicholos.tyler.dugout.model.domain.PlayItem
 
 fun GameFeedResponseDto.toGameDetails(gamePk: Int): GameDetails {
@@ -16,6 +17,14 @@ fun GameFeedResponseDto.toGameDetails(gamePk: Int): GameDetails {
     val playList = plays
         .map { it.toPlayItem() }
         .reversed()
+
+    val inningScores = linescore?.innings?.map {
+        InningScore(
+            number = it.num,
+            awayRuns = it.away?.runs,
+            homeRuns = it.home?.runs
+        )
+    }.orEmpty()
 
     Log.d("help me","inningState=${linescore?.inningState} currentInning=${linescore?.currentInning} detailedState=${gameData?.status?.detailedState}"
     )
@@ -33,6 +42,10 @@ fun GameFeedResponseDto.toGameDetails(gamePk: Int): GameDetails {
         homeTeamId = gameData?.teams?.home?.id ?: 0,
         awayScore = linescore?.teams?.away?.runs ?: 0,
         homeScore = linescore?.teams?.home?.runs ?: 0,
+        awayHits = linescore?.teams?.away?.hits ?: 0,
+        homeHits = linescore?.teams?.home?.hits ?: 0,
+        awayErrors = linescore?.teams?.away?.errors ?: 0,
+        homeErrors = linescore?.teams?.home?.errors ?: 0,
         status = gameData?.status?.detailedState,
         venue = gameData?.venue?.name,
         currentInning = linescore?.currentInning ?: 0,
@@ -48,7 +61,8 @@ fun GameFeedResponseDto.toGameDetails(gamePk: Int): GameDetails {
         currentPitcher = lastPlay?.matchup?.pitcher?.fullName,
         officialDate = gameData?.datetime?.officialDate,
         startDateTime = gameData?.datetime?.dateTime,
-        plays = playList
+        plays = playList,
+        innings = inningScores
     )
 }
 

@@ -13,40 +13,38 @@ import nicholos.tyler.dugout.data.repository.LeagueRepository
 import nicholos.tyler.dugout.model.mapper.toTenDayStretchUiModel
 import nicholos.tyler.dugout.model.mapper.toUiModel
 import nicholos.tyler.dugout.model.mapper.toUiModels
-import nicholos.tyler.dugout.model.ui.HomeUiState
+import nicholos.tyler.dugout.model.ui.TeamPageUiState
 import nicholos.tyler.dugout.ui.screens.toSnapshotUiModel
 
-class HomeViewModel(
-    private val repository: GamesRepository,
+class TeamPageViewModel(
+    private val gamesRepository: GamesRepository,
     private val leagueRepository: LeagueRepository
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(HomeUiState())
-    val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
+    private val _uiState = MutableStateFlow(TeamPageUiState())
+    val uiState: StateFlow<TeamPageUiState> = _uiState.asStateFlow()
 
     private var loadedTeamId: Int? = null
     private var lastRefreshDate: LocalDate? = null
 
-    fun loadHome(teamId: Int, forceRefresh: Boolean = false) {
-        if (!forceRefresh && loadedTeamId == teamId && hasContent()) {
+    fun loadTeamPage(teamId: Int, forceRefresh: Boolean = false) {
+        if (!forceRefresh && loadedTeamId == teamId) {
             return
         }
 
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(
-                isLoading = true,
-                error = null
-            )
+            _uiState.value = TeamPageUiState(isLoading = true)
+            loadedTeamId = teamId
 
             try {
-                val todaysScheduledGame = repository.getTodaysGame(teamId)
+                val todaysScheduledGame = gamesRepository.getTodaysGame(teamId)
 
                 val stretchGamesDeferred = async {
-                    repository.getStretchGames(teamId)
+                    gamesRepository.getStretchGames(teamId)
                 }
 
                 val teamMvpsDeferred = async {
-                    repository.getTeamMVPs(teamId)
+                    gamesRepository.getTeamMVPs(teamId)
                 }
 
                 val divisionDeferred = async {
@@ -54,7 +52,7 @@ class HomeViewModel(
                 }
 
                 val todaysGameDetails = todaysScheduledGame?.let { scheduledGame ->
-                    repository.getGameDetails(scheduledGame.gamePk)
+                    gamesRepository.getGameDetails(scheduledGame.gamePk)
                 }
 
                 val todaysSnapshotCard = todaysGameDetails?.toSnapshotUiModel()
@@ -62,7 +60,7 @@ class HomeViewModel(
                 val teamMvps = teamMvpsDeferred.await()
                 val division = divisionDeferred.await()
 
-                _uiState.value = HomeUiState(
+                _uiState.value = TeamPageUiState(
                     isLoading = false,
                     todaysGame = todaysSnapshotCard,
                     tenDayStretch = stretchGames.toTenDayStretchUiModel(teamId),
@@ -71,12 +69,11 @@ class HomeViewModel(
                     divisionStandings = division?.toUiModels(selectedTeamId = teamId).orEmpty()
                 )
 
-                loadedTeamId = teamId
                 lastRefreshDate = LocalDate.now()
             } catch (t: Throwable) {
-                _uiState.value = HomeUiState(
+                _uiState.value = TeamPageUiState(
                     isLoading = false,
-                    error = t.message ?: "Failed to load home"
+                    error = t.message ?: "Failed to load team page"
                 )
             }
         }
@@ -84,7 +81,7 @@ class HomeViewModel(
 
     fun refreshIfNeeded(teamId: Int) {
         if (shouldRefresh()) {
-            loadHome(teamId, forceRefresh = true)
+            loadTeamPage(teamId, forceRefresh = true)
         }
     }
 
@@ -93,13 +90,12 @@ class HomeViewModel(
         val liveGame = _uiState.value.todaysGame?.status.isLiveGameStatus()
         return staleFromPreviousDay || liveGame
     }
+}
 
-    private fun hasContent(): Boolean {
-        val state = _uiState.value
-        return state.todaysGame != null ||
-                state.tenDayStretch != null ||
-                state.teamMvps != null
-    }
+fun String.toShortDivisionTitle(): String {
+    return this
+        .replace("American League", "AL")
+        .replace("National League", "NL")
 }
 
 private fun String?.isLiveGameStatus(): Boolean {
@@ -114,7 +110,6 @@ private fun String?.isLiveGameStatus(): Boolean {
         "top",
         "bottom",
         "inning",
-        "final/10", // optional if your backend ever formats oddly
         "delayed",
         "warmup",
         "pregame"

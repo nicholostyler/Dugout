@@ -20,13 +20,22 @@ class DugoutViewModelFactory(
             modelClass.isAssignableFrom(GameDetailViewModel::class.java) -> {
                 GameDetailViewModel(repository) as T
             }
+            modelClass.isAssignableFrom(PlayerViewModel::class.java) -> {
+                PlayerViewModel(repository) as T
+            }
 
             modelClass.isAssignableFrom(HomeViewModel::class.java) -> {
-                HomeViewModel(repository) as T
+                HomeViewModel(repository, leagueRepository) as T
+            }
+            modelClass.isAssignableFrom(ScoresViewModel::class.java) -> {
+                ScoresViewModel(repository) as T
             }
 
             modelClass.isAssignableFrom(RosterViewModel::class.java) -> {
                 RosterViewModel(repository) as T
+            }
+            modelClass.isAssignableFrom(TeamPageViewModel::class.java) -> {
+                TeamPageViewModel(repository, leagueRepository) as T
             }
             modelClass.isAssignableFrom(LeagueViewModel::class.java) -> {
                 LeagueViewModel(leagueRepository) as T

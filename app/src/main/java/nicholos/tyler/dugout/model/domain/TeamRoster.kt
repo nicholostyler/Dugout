@@ -13,7 +13,8 @@ data class RosterPlayer(
     val positionType: String,
     val status: String?,
     val hitterStats: HitterStats?,
-    val pitcherStats: PitcherStats?
+    val pitcherStats: PitcherStats?,
+    val fieldingStats: FieldingStats?
 )
 
 data class HitterStats(
@@ -28,4 +29,12 @@ data class PitcherStats(
     val strikeOuts: Int?,
     val wins: Int?,
     val whip: String?
+)
+
+data class FieldingStats(
+    val fielding: String?,
+    val chances: Int?,
+    val putOuts: Int?,
+    val errors: Int?,
+    val assists: Int?
 )

@@ -33,6 +33,8 @@ data class PersonDto(
 
 @Serializable
 data class PositionDto(
+    @SerialName("code")
+    val code: String? = null,
     @SerialName("abbreviation")
     val abbreviation: String? = null,
     @SerialName("name")
@@ -94,5 +96,15 @@ data class PlayerSeasonStatDto(
     @SerialName("wins")
     val wins: Int? = null,
     @SerialName("whip")
-    val whip: String? = null
+    val whip: String? = null,
+    @SerialName("fielding")
+    val fielding: String? = null,
+    @SerialName("chances")
+    val chances: Int? = null,
+    @SerialName("putOuts")
+    val putOuts: Int? = null,
+    @SerialName("errors")
+    val errors: Int? = null,
+    @SerialName("assists")
+    val assists: Int? = null
 )

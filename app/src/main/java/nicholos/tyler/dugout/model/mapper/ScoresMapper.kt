@@ -2,14 +2,13 @@ package nicholos.tyler.dugout.model.mapper
 
 import nicholos.tyler.dugout.model.domain.Game
 import nicholos.tyler.dugout.model.domain.MlbTeams
-import nicholos.tyler.dugout.model.ui.GameCardUiModel
 import nicholos.tyler.dugout.model.ui.GameSnapshotCardUiModel
 import nicholos.tyler.dugout.model.ui.TeamScoreUiModel
-import nicholos.tyler.dugout.ui.components.TenDayStretchUiModel
 
-fun Game.toGameSnapshotCardUiModel(): GameSnapshotCardUiModel {
+fun Game.toScoresSnapshotCardUiModel(): GameSnapshotCardUiModel {
     val away = teams?.away?.team
     val home = teams?.home?.team
+    val detailedState = status?.detailedState.orEmpty()
 
     return GameSnapshotCardUiModel(
         gameId = gamePk,
@@ -21,31 +20,22 @@ fun Game.toGameSnapshotCardUiModel(): GameSnapshotCardUiModel {
             name = MlbTeams.get(home?.id ?: 0, fallbackName = home?.name),
             score = teams?.home?.score?.toString() ?: "—"
         ),
-        status = status?.detailedState.orEmpty(),
+        status = detailedState,
         startTime = startTime(),
+        inningText = when {
+            detailedState.contains("Top", ignoreCase = true) -> detailedState
+            detailedState.contains("Bot", ignoreCase = true) -> detailedState
+            detailedState.contains("Middle", ignoreCase = true) -> detailedState
+            detailedState.contains("End", ignoreCase = true) -> detailedState
+            else -> ""
+        },
+        isTopInning = when {
+            detailedState.startsWith("Top", ignoreCase = true) -> true
+            detailedState.startsWith("Bot", ignoreCase = true) -> false
+            else -> null
+        },
         countText = "",
         outsText = "",
-        inningText = "",
-        isTopInning = null,
         shortDate = shortDate()
-    )
-}
-
-fun List<Game>.toTenDayStretchUiModel(teamId: Int): TenDayStretchUiModel {
-    return TenDayStretchUiModel(
-        games = map { game ->
-            GameCardUiModel(
-                id = game.gamePk,
-                shortDate = game.shortDate(),
-                year = game.year(),
-                matchup = game.matchup(),
-                ballpark = game.ballpark(),
-                score = game.scoreDisplay(),
-                resultText = game.resultFor(teamId),
-                outcome = game.outcomeFor(teamId),
-                isSelected = false,
-
-            )
-        }
     )
 }

@@ -7,7 +7,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.navigation3.runtime.NavKey
 import kotlinx.serialization.Serializable
-import nicholos.tyler.dugout.model.domain.TeamRoster
 
 @Serializable
 sealed interface DugoutRoute : NavKey
@@ -33,9 +32,27 @@ data class GameDetailRoute(
 ) : DugoutRoute
 
 @Serializable
+data class TeamPageRoute(
+    val teamId: Int
+) : DugoutRoute
+
+@Serializable
 data class TeamRosterRoute(
     val teamId: Int
 ) : DugoutRoute
+
+@Serializable
+data class TeamScheduleRoute(
+    val teamId: Int,
+    val season: Int
+) : DugoutRoute
+
+@Serializable
+data class PlayerRoute(
+    val teamId: Int,
+    val playerId: Int
+) : DugoutRoute
+
 enum class TopLevelDestination {
     HOME, SCHEDULE, SCORES, LEAGUE
 }
@@ -65,12 +82,24 @@ class DugoutNavigationState(
         backStack.add(root)
     }
 
+    fun navigateToTeamPage(teamId: Int) {
+        backStack.add(TeamPageRoute(teamId))
+    }
+
     fun navigateToGameDetail(gamePk: Int) {
         backStack.add(GameDetailRoute(gamePk))
     }
 
     fun navigateTeamRoster(teamId: Int) {
         backStack.add(TeamRosterRoute(teamId))
+    }
+
+    fun navigateToTeamSchedule(teamId: Int, season: Int) {
+        backStack.add(TeamScheduleRoute(teamId, season))
+    }
+
+    fun navigateToPlayer(teamId: Int, playerId: Int) {
+        backStack.add(PlayerRoute(teamId = teamId, playerId = playerId))
     }
 
     fun canGoBack(): Boolean = backStack.size > 1
@@ -89,6 +118,9 @@ class DugoutNavigationState(
             LeagueRoute -> "League"
             is GameDetailRoute -> "Game Detail"
             is TeamRosterRoute -> "Team Roster"
+            is TeamPageRoute -> "Team"
+            is TeamScheduleRoute -> "Team Schedule"
+            is PlayerRoute -> "Player"
             else -> "Home"
         }
     }

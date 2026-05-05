@@ -5,6 +5,7 @@ import nicholos.tyler.dugout.model.domain.Game
 import nicholos.tyler.dugout.model.domain.GameOutcome
 import nicholos.tyler.dugout.model.domain.MlbTeams
 import java.time.OffsetDateTime
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
@@ -12,7 +13,19 @@ fun Game.shortDate(): String {
     return try {
         val date = gameDate ?: return ""
         val parsed = OffsetDateTime.parse(date)
-        parsed.format(DateTimeFormatter.ofPattern("MMM dd", Locale.US))
+        parsed.atZoneSameInstant(ZoneId.systemDefault())
+            .format(DateTimeFormatter.ofPattern("MMM dd", Locale.US))
+    } catch (_: Exception) {
+        ""
+    }
+}
+
+fun Game.startTime(): String {
+    return try {
+        val date = gameDate ?: return ""
+        val parsed = OffsetDateTime.parse(date)
+        parsed.atZoneSameInstant(ZoneId.systemDefault())
+            .format(DateTimeFormatter.ofPattern("h:mm a", Locale.US))
     } catch (_: Exception) {
         ""
     }

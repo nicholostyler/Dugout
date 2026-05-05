@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ButtonGroupDefaults
@@ -22,6 +23,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.ToggleButton
+import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -48,59 +50,22 @@ import nicholos.tyler.dugout.model.domain.GameDetails
 import nicholos.tyler.dugout.model.domain.MlbTeams
 import nicholos.tyler.dugout.model.domain.PlayItem
 import nicholos.tyler.dugout.model.ui.GameSnapshotCardUiModel
+import nicholos.tyler.dugout.model.ui.InningScoreUiModel
+import nicholos.tyler.dugout.model.ui.LinescoreUiModel
+import nicholos.tyler.dugout.model.ui.TeamTotalUiModel
 import nicholos.tyler.dugout.model.ui.TeamScoreUiModel
 import nicholos.tyler.dugout.ui.components.GameSnapshotCard
 import nicholos.tyler.dugout.ui.theme.DugoutTheme
 import nicholos.tyler.dugout.viewmodel.GameDetailUiState
 import nicholos.tyler.dugout.viewmodel.GameDetailViewModel
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-
-private enum class PlayFilter {
-    ALL,
-    SCORING
-}
-
-private data class PlayGroup(
-    val inning: Int,
-    val isTopInning: Boolean,
-    val plays: List<PlayItem>
-) {
-    val title: String
-        get() = "${if (isTopInning) "Top" else "Bottom"} $inning"
-}
-
-private fun groupPlaysByInningHalf(plays: List<PlayItem>): List<PlayGroup> {
-    return plays
-        .groupBy { it.inning to it.isTopInning }
-        .map { (key, playsInGroup) ->
-            PlayGroup(
-                inning = key.first,
-                isTopInning = key.second,
-                plays = playsInGroup
-            )
-        }
-        .sortedWith(
-            compareByDescending<PlayGroup> { it.inning }
-                .thenByDescending { it.isTopInning }
-        )
-}
-
-private fun PlayItem.isLikelyScoringPlay(): Boolean {
-    val text = description.orEmpty().lowercase()
-
-    return text.contains(" scores") ||
-            text.contains("score.") ||
-            text.contains("score,") ||
-            text.contains("homers") ||
-            text.contains("home run") ||
-            text.contains("grand slam") ||
-            text.contains("sacrifice fly") ||
-            text.contains("sac fly") ||
-            text.contains("steals home")
-}
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.ExperimentalMaterial3Api
+import nicholos.tyler.dugout.model.domain.Boxscore
+import nicholos.tyler.dugout.model.domain.BoxscorePlayer
+import nicholos.tyler.dugout.model.domain.BoxscoreTeam
 
 @Composable
 fun GameDetailScreen(
@@ -167,9 +132,11 @@ fun GameDetailContent(
 
         else -> {
             val game = uiState.gameDetails
-            var selectedFilter by rememberSaveable { mutableStateOf(PlayFilter.ALL) }
+            var selectedTab by rememberSaveable { mutableStateOf(GameDetailTab.PLAYS) }
+            var selectedPlayFilter by rememberSaveable { mutableStateOf(PlayFilter.ALL) }
+            var selectedBoxTeam by rememberSaveable { mutableStateOf(BoxTeamFilter.AWAY) }
 
-            val filteredPlays = when (selectedFilter) {
+            val filteredPlays = when (selectedPlayFilter) {
                 PlayFilter.ALL -> game.plays
                 PlayFilter.SCORING -> game.plays.filter { it.isLikelyScoringPlay() }
             }
@@ -186,56 +153,75 @@ fun GameDetailContent(
                 }
 
                 item {
-                    Text(
-                        text = "Plays",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface
+                    MainTabToggle(
+                        selectedTab = selectedTab,
+                        onTabSelected = { selectedTab = it }
                     )
                 }
 
-                item {
-                    PlayFilterToggle(
-                        selectedFilter = selectedFilter,
-                        onFilterSelected = { selectedFilter = it }
-                    )
-                }
-
-                if (filteredPlays.isEmpty()) {
+                if (selectedTab == GameDetailTab.PLAYS) {
                     item {
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = MaterialTheme.shapes.large,
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                            )
-                        ) {
-                            Text(
-                                text = if (selectedFilter == PlayFilter.SCORING) {
-                                    "No scoring plays available yet."
-                                } else {
-                                    "No plays available yet."
-                                },
-                                modifier = Modifier.padding(16.dp),
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                        PlayFilterChips(
+                            selectedFilter = selectedPlayFilter,
+                            onFilterSelected = { selectedPlayFilter = it }
+                        )
+                    }
+
+                    if (filteredPlays.isEmpty()) {
+                        item {
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = MaterialTheme.shapes.large,
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainer
+                                )
+                            ) {
+                                Text(
+                                    text = if (selectedPlayFilter == PlayFilter.SCORING) {
+                                        "No scoring plays available yet."
+                                    } else {
+                                        "No plays available yet."
+                                    },
+                                    modifier = Modifier.padding(16.dp),
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    } else {
+                        val playGroups = groupPlaysByInningHalf(filteredPlays)
+
+                        playGroups.forEach { group ->
+                            itemsIndexed(
+                                items = group.plays,
+                                key = { index, play ->
+                                    "${group.inning}-${group.isTopInning}-$index-${play.event}-${play.description}"
+                                }
+                            ) { _, play ->
+                                PlayRow(
+                                    play = play,
+                                    inningLabel = group.title
+                                )
+                            }
                         }
                     }
                 } else {
-                    val playGroups = groupPlaysByInningHalf(filteredPlays)
-
-                    playGroups.forEach { group ->
-                        itemsIndexed(
-                            items = group.plays,
-                            key = { index, play ->
-                                "${group.inning}-${group.isTopInning}-$index-${play.event}-${play.description}"
-                            }
-                        ) { _, play ->
-                            PlayRow(
-                                play = play,
-                                inningLabel = group.title
+                    // Boxscore Tab
+                    uiState.boxscore?.let { boxscore ->
+                        item {
+                            BoxTeamToggle(
+                                awayTeamName = MlbTeams.get(game.awayTeamId, game.awayTeam).shortName,
+                                homeTeamName = MlbTeams.get(game.homeTeamId, game.homeTeam).shortName,
+                                selectedTeam = selectedBoxTeam,
+                                onTeamSelected = { selectedBoxTeam = it }
                             )
+                        }
+                        item {
+                            BoxscoreContent(boxscore, selectedBoxTeam)
+                        }
+                    } ?: item {
+                        Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator()
                         }
                     }
                 }
@@ -244,39 +230,6 @@ fun GameDetailContent(
     }
 }
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
-@Composable
-private fun PlayFilterToggle(
-    selectedFilter: PlayFilter,
-    onFilterSelected: (PlayFilter) -> Unit
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)
-    ) {
-        ToggleButton(
-            checked = selectedFilter == PlayFilter.ALL,
-            onCheckedChange = { onFilterSelected(PlayFilter.ALL) },
-            modifier = Modifier
-                .weight(1f)
-                .semantics { role = Role.RadioButton },
-            shapes = ButtonGroupDefaults.connectedLeadingButtonShapes()
-        ) {
-            Text("All Plays")
-        }
-
-        ToggleButton(
-            checked = selectedFilter == PlayFilter.SCORING,
-            onCheckedChange = { onFilterSelected(PlayFilter.SCORING) },
-            modifier = Modifier
-                .weight(1f)
-                .semantics { role = Role.RadioButton },
-            shapes = ButtonGroupDefaults.connectedTrailingButtonShapes()
-        ) {
-            Text("Scoring Plays")
-        }
-    }
-}
 
 fun GameDetails.toSnapshotUiModel(): GameSnapshotCardUiModel {
     val isFinal = status.equals("Final", ignoreCase = true)
@@ -292,6 +245,13 @@ fun GameDetails.toSnapshotUiModel(): GameSnapshotCardUiModel {
             score = homeScore.toString()
         ),
         status = status.orEmpty(),
+        startTime = try {
+            startDateTime?.let {
+                val parsed = java.time.OffsetDateTime.parse(it)
+                parsed.atZoneSameInstant(java.time.ZoneId.systemDefault())
+                    .format(java.time.format.DateTimeFormatter.ofPattern("h:mm a", java.util.Locale.US))
+            } ?: ""
+        } catch (_: Exception) { "" },
         countText = if (isFinal) "" else countText(),
         outsText = if (isFinal) "" else outsText(),
         inningText = if (isFinal) "" else inningDisplay,
@@ -303,7 +263,25 @@ fun GameDetails.toSnapshotUiModel(): GameSnapshotCardUiModel {
                 "bottom", "bot" -> false
                 else -> null
             }
-        }
+        },
+        shortDate = try {
+            startDateTime?.let {
+                val parsed = java.time.OffsetDateTime.parse(it)
+                parsed.atZoneSameInstant(java.time.ZoneId.systemDefault())
+                    .format(java.time.format.DateTimeFormatter.ofPattern("MMM dd", java.util.Locale.US))
+            } ?: ""
+        } catch (_: Exception) { "" },
+        linescore = LinescoreUiModel(
+            innings = innings.map {
+                InningScoreUiModel(
+                    number = it.number,
+                    leftRuns = it.awayRuns?.toString() ?: "-",
+                    rightRuns = it.homeRuns?.toString() ?: "-"
+                )
+            },
+            leftTotal = TeamTotalUiModel(runs = awayScore, hits = awayHits, errors = awayErrors),
+            rightTotal = TeamTotalUiModel(runs = homeScore, hits = homeHits, errors = homeErrors)
+        )
     )
 }
 
@@ -320,8 +298,328 @@ private fun GameDetails.outsText(): String {
     }
 }
 
+// Play-by-play components
+
+enum class GameDetailTab {
+    PLAYS,
+    BOX
+}
+
+enum class BoxTeamFilter {
+    AWAY,
+    HOME
+}
+
+@OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun PlayRow(
+fun MainTabToggle(
+    selectedTab: GameDetailTab,
+    onTabSelected: (GameDetailTab) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)
+    ) {
+        ToggleButton(
+            checked = selectedTab == GameDetailTab.PLAYS,
+            onCheckedChange = { onTabSelected(GameDetailTab.PLAYS) },
+            modifier = Modifier
+                .weight(1f)
+                .semantics { role = Role.Tab },
+            shapes = ButtonGroupDefaults.connectedLeadingButtonShapes()
+        ) {
+            Text("Plays")
+        }
+
+        ToggleButton(
+            checked = selectedTab == GameDetailTab.BOX,
+            onCheckedChange = { onTabSelected(GameDetailTab.BOX) },
+            modifier = Modifier
+                .weight(1f)
+                .semantics { role = Role.Tab },
+            shapes = ButtonGroupDefaults.connectedTrailingButtonShapes()
+        ) {
+            Text("Box")
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun BoxTeamToggle(
+    awayTeamName: String,
+    homeTeamName: String,
+    selectedTeam: BoxTeamFilter,
+    onTeamSelected: (BoxTeamFilter) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        FilterChip(
+            selected = selectedTeam == BoxTeamFilter.AWAY,
+            onClick = { onTeamSelected(BoxTeamFilter.AWAY) },
+            label = { Text(awayTeamName) }
+        )
+
+        FilterChip(
+            selected = selectedTeam == BoxTeamFilter.HOME,
+            onClick = { onTeamSelected(BoxTeamFilter.HOME) },
+            label = { Text(homeTeamName) }
+        )
+    }
+}
+
+
+@Composable
+fun BoxscoreContent(
+    boxscore: Boxscore,
+    selectedTeam: BoxTeamFilter,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(24.dp)
+    ) {
+        when (selectedTeam) {
+            BoxTeamFilter.AWAY -> TeamBoxscoreSection(boxscore.away)
+            BoxTeamFilter.HOME -> TeamBoxscoreSection(boxscore.home)
+        }
+    }
+}
+
+@Composable
+fun TeamBoxscoreSection(
+    team: BoxscoreTeam,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        // Batting Card
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = MaterialTheme.shapes.large,
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainer
+            )
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    text = "Batting",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+
+                BattingHeader()
+                team.batters.forEach { batter ->
+                    BattingRow(batter)
+                }
+            }
+        }
+
+        // Pitching Card
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = MaterialTheme.shapes.large,
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainer
+            )
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    text = "Pitching",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+
+                PitchingHeader()
+                team.pitchers.forEach { pitcher ->
+                    PitchingRow(pitcher)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun BattingHeader() {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(text = "Player", modifier = Modifier.weight(1f), style = MaterialTheme.typography.labelSmall)
+        BoxscoreStatHeader("AB")
+        BoxscoreStatHeader("R")
+        BoxscoreStatHeader("H")
+        BoxscoreStatHeader("RBI")
+        BoxscoreStatHeader("BB")
+        BoxscoreStatHeader("K")
+    }
+}
+
+@Composable
+fun BattingRow(player: BoxscorePlayer) {
+    val stats = player.battingStats ?: return
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = player.fullName, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(text = player.position, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        BoxscoreStatValue(stats.ab.toString())
+        BoxscoreStatValue(stats.r.toString())
+        BoxscoreStatValue(stats.h.toString())
+        BoxscoreStatValue(stats.rbi.toString())
+        BoxscoreStatValue(stats.bb.toString())
+        BoxscoreStatValue(stats.k.toString())
+    }
+}
+
+@Composable
+fun PitchingHeader() {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(text = "Player", modifier = Modifier.weight(1f), style = MaterialTheme.typography.labelSmall)
+        BoxscoreStatHeader("IP")
+        BoxscoreStatHeader("H")
+        BoxscoreStatHeader("R")
+        BoxscoreStatHeader("ER")
+        BoxscoreStatHeader("BB")
+        BoxscoreStatHeader("K")
+    }
+}
+
+@Composable
+fun PitchingRow(player: BoxscorePlayer) {
+    val stats = player.pitchingStats ?: return
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = player.fullName, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        BoxscoreStatValue(stats.ip)
+        BoxscoreStatValue(stats.h.toString())
+        BoxscoreStatValue(stats.r.toString())
+        BoxscoreStatValue(stats.er.toString())
+        BoxscoreStatValue(stats.bb.toString())
+        BoxscoreStatValue(stats.k.toString())
+    }
+}
+
+@Composable
+fun BoxscoreStatHeader(text: String) {
+    Text(
+        text = text,
+        modifier = Modifier.size(width = 28.dp, height = 16.dp),
+        style = MaterialTheme.typography.labelSmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+    )
+}
+
+@Composable
+fun BoxscoreStatValue(text: String) {
+    Text(
+        text = text,
+        modifier = Modifier.size(width = 28.dp, height = 20.dp),
+        style = MaterialTheme.typography.bodyMedium,
+        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+    )
+}
+
+enum class PlayFilter {
+    ALL,
+    SCORING
+}
+
+data class PlayGroup(
+    val inning: Int,
+    val isTopInning: Boolean,
+    val plays: List<PlayItem>
+) {
+    val title: String
+        get() = "${if (isTopInning) "Top" else "Bottom"} $inning"
+}
+
+fun groupPlaysByInningHalf(plays: List<PlayItem>): List<PlayGroup> {
+    return plays
+        .groupBy { it.inning to it.isTopInning }
+        .map { (key, playsInGroup) ->
+            PlayGroup(
+                inning = key.first,
+                isTopInning = key.second,
+                plays = playsInGroup
+            )
+        }
+        .sortedWith(
+            compareByDescending<PlayGroup> { it.inning }
+                .thenByDescending { it.isTopInning }
+        )
+}
+
+fun PlayItem.isLikelyScoringPlay(): Boolean {
+    val text = description.orEmpty().lowercase()
+
+    return text.contains(" scores") ||
+            text.contains("score.") ||
+            text.contains("score,") ||
+            text.contains("homers") ||
+            text.contains("home run") ||
+            text.contains("grand slam") ||
+            text.contains("sacrifice fly") ||
+            text.contains("sac fly") ||
+            text.contains("steals home")
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun PlayFilterChips(
+    selectedFilter: PlayFilter,
+    onFilterSelected: (PlayFilter) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        FilterChip(
+            selected = selectedFilter == PlayFilter.ALL,
+            onClick = { onFilterSelected(PlayFilter.ALL) },
+            label = { Text("All Plays") },
+            leadingIcon = null
+        )
+
+        FilterChip(
+            selected = selectedFilter == PlayFilter.SCORING,
+            onClick = { onFilterSelected(PlayFilter.SCORING) },
+            label = { Text("Scoring Plays") },
+            leadingIcon = null
+        )
+    }
+}
+
+@Composable
+fun PlayRow(
     play: PlayItem,
     inningLabel: String? = null,
     modifier: Modifier = Modifier,
@@ -330,7 +628,7 @@ private fun PlayRow(
         modifier = modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+            containerColor = MaterialTheme.colorScheme.surfaceContainer
         )
     ) {
         Row(
@@ -359,8 +657,6 @@ private fun PlayRow(
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.primary
                         )
-                    } else {
-                        Spacer(modifier = Modifier.weight(1f))
                     }
 
                     Spacer(modifier = Modifier.weight(1f))
@@ -371,7 +667,7 @@ private fun PlayRow(
                             shape = RoundedCornerShape(999.dp)
                         ) {
                             Text(
-                                text = play.event.orEmpty(),
+                                text = play.event,
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onPrimary,
                                 fontWeight = FontWeight.SemiBold,
@@ -387,7 +683,7 @@ private fun PlayRow(
 
                 if (!play.description.isNullOrBlank()) {
                     Text(
-                        text = play.description.orEmpty(),
+                        text = play.description,
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurface
                     )
@@ -413,7 +709,7 @@ private fun PlayRow(
 }
 
 @Composable
-private fun PlayerHeadshot(
+fun PlayerHeadshot(
     playerId: Int?,
     contentDescription: String,
     modifier: Modifier = Modifier,
@@ -444,7 +740,7 @@ private fun PlayerHeadshot(
     )
 }
 
-private fun buildMatchupLine(
+fun buildMatchupLine(
     batter: String?,
     pitcher: String?
 ): String {
@@ -455,6 +751,7 @@ private fun buildMatchupLine(
         else -> ""
     }
 }
+
 
 @Preview(showBackground = true)
 @Composable

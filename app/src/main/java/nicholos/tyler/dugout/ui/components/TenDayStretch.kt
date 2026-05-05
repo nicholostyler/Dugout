@@ -46,7 +46,7 @@ fun TenDayStretchSection(
         ) {
             items(
                 items = model.games,
-                key = { it.id }
+                key = { "${it.id}_${it.shortDate}" }
             ) { game ->
                 GameCard(
                     game = game,

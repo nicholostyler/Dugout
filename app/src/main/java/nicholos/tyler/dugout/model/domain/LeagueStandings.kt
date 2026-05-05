@@ -5,6 +5,7 @@ data class LeagueStandings(
 )
 
 data class DivisionStandings(
+    val divisionId: Int,
     val divisionName: String,
     val teams: List<DivisionTeamStanding>
 )

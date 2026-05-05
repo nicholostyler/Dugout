@@ -7,11 +7,13 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import nicholos.tyler.dugout.data.repository.GamesRepository
+import nicholos.tyler.dugout.model.domain.Boxscore
 import nicholos.tyler.dugout.model.domain.GameDetails
 
 data class GameDetailUiState(
     val isLoading: Boolean = false,
     val gameDetails: GameDetails? = null,
+    val boxscore: Boxscore? = null,
     val error: String? = null
 )
 
@@ -37,9 +39,11 @@ class GameDetailViewModel(
 
             try {
                 val gameDetails = repository.getGameDetails(gamePk)
+                val boxscore = repository.getBoxscore(gamePk)
                 _uiState.value = GameDetailUiState(
                     isLoading = false,
-                    gameDetails = gameDetails
+                    gameDetails = gameDetails,
+                    boxscore = boxscore
                 )
             } catch (t: Throwable) {
                 _uiState.value = _uiState.value.copy(

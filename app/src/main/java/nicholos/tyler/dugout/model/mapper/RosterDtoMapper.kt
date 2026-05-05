@@ -4,6 +4,7 @@ import nicholos.tyler.dugout.data.api.dto.PersonStatWrapperDto
 import nicholos.tyler.dugout.data.api.dto.PlayerSeasonStatDto
 import nicholos.tyler.dugout.data.api.dto.RosterPlayerDto
 import nicholos.tyler.dugout.data.api.dto.RosterResponseDto
+import nicholos.tyler.dugout.model.domain.FieldingStats
 import nicholos.tyler.dugout.model.domain.HitterStats
 import nicholos.tyler.dugout.model.domain.PitcherStats
 import nicholos.tyler.dugout.model.domain.RosterPlayer
@@ -25,7 +26,8 @@ private fun RosterPlayerDto.toDomain(): RosterPlayer {
         positionType = position?.type.orEmpty(),
         status = status?.description,
         hitterStats = person.stats.firstStat("hitting")?.toHitterStats(),
-        pitcherStats = person.stats.firstStat("pitching")?.toPitcherStats()
+        pitcherStats = person.stats.firstStat("pitching")?.toPitcherStats(),
+        fieldingStats = person.stats.firstStat("fielding")?.toFieldingStats()
     )
 }
 
@@ -44,6 +46,16 @@ private fun PlayerSeasonStatDto.toPitcherStats(): PitcherStats {
         strikeOuts = strikeOuts,
         wins = wins,
         whip = whip
+    )
+}
+
+private fun PlayerSeasonStatDto.toFieldingStats(): FieldingStats {
+    return FieldingStats(
+        fielding = fielding,
+        chances = chances,
+        putOuts = putOuts,
+        errors = errors,
+        assists = assists
     )
 }
 

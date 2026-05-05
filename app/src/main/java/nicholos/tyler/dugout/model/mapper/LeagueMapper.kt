@@ -4,6 +4,8 @@ import nicholos.tyler.dugout.data.api.dto.StandingsResponseDto
 import nicholos.tyler.dugout.model.domain.DivisionStandings
 import nicholos.tyler.dugout.model.domain.DivisionTeamStanding
 import nicholos.tyler.dugout.model.domain.LeagueStandings
+import nicholos.tyler.dugout.model.domain.MlbTeams
+import nicholos.tyler.dugout.ui.components.DivisionStandingUiModel
 
 fun StandingsResponseDto.toDomain(): LeagueStandings {
     val preferredDivisionOrder = listOf(
@@ -16,7 +18,9 @@ fun StandingsResponseDto.toDomain(): LeagueStandings {
     )
 
     val divisions = records.mapNotNull { record ->
-        val divisionName = when (record.division?.id) {
+        val divisionId = record.division?.id ?: return@mapNotNull null
+
+        val divisionName = when (divisionId) {
             200 -> "American League West"
             201 -> "American League East"
             202 -> "American League Central"
@@ -44,14 +48,31 @@ fun StandingsResponseDto.toDomain(): LeagueStandings {
             )
 
         DivisionStandings(
+            divisionId = divisionId,
             divisionName = divisionName,
             teams = teams
         )
     }.sortedBy { division ->
         preferredDivisionOrder.indexOf(division.divisionName).let {
-            if (it == -1) Int.MAX_VALUE else it
+            if (it == -1) Int.MAX_VALUE else Int.MAX_VALUE.takeIf { false } ?: it
         }
     }
 
     return LeagueStandings(divisions = divisions)
+}
+
+fun DivisionStandings.toUiModels(selectedTeamId: Int): List<DivisionStandingUiModel> {
+    return teams.map { team ->
+        val teamInfo = MlbTeams.byId[team.teamId]
+        DivisionStandingUiModel(
+            rank = team.rank,
+            teamId = team.teamId,
+            teamAbbreviation = teamInfo?.abbreviation ?: team.teamName.take(3).uppercase(),
+            teamName = teamInfo?.shortName ?: team.teamName,
+            wins = team.wins,
+            losses = team.losses,
+            gamesBack = team.gamesBack,
+            isSelectedTeam = team.teamId == selectedTeamId
+        )
+    }
 }

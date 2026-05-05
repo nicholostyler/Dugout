@@ -99,7 +99,26 @@ data class LinescoreDto(
     val inningState: String? = null,
 
     @SerialName("teams")
-    val teams: TeamsScoreDto? = null
+    val teams: TeamsScoreDto? = null,
+
+    @SerialName("innings")
+    val innings: List<InningDto> = emptyList()
+)
+
+@Serializable
+data class InningDto(
+    @SerialName("num")
+    val num: Int,
+    @SerialName("home")
+    val home: InningScoreDto? = null,
+    @SerialName("away")
+    val away: InningScoreDto? = null
+)
+
+@Serializable
+data class InningScoreDto(
+    @SerialName("runs")
+    val runs: Int? = null
 )
 
 @Serializable
@@ -114,7 +133,11 @@ data class TeamsScoreDto(
 @Serializable
 data class TeamRunInfoDto(
     @SerialName("runs")
-    val runs: Int = 0
+    val runs: Int = 0,
+    @SerialName("hits")
+    val hits: Int = 0,
+    @SerialName("errors")
+    val errors: Int = 0
 )
 
 @Serializable
