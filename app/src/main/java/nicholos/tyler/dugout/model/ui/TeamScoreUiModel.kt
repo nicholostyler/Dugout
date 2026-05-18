@@ -7,4 +7,6 @@ import nicholos.tyler.dugout.model.domain.TeamDisplayInfo
 data class TeamScoreUiModel(
     val name: TeamDisplayInfo,
     val score: String,
+    val record: String = "",
+    val probablePitcher: String? = null
 )

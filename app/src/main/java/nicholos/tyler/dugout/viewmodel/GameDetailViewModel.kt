@@ -2,6 +2,7 @@ package nicholos.tyler.dugout.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import java.time.LocalDate
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -25,9 +26,10 @@ class GameDetailViewModel(
     val uiState: StateFlow<GameDetailUiState> = _uiState.asStateFlow()
 
     private var currentGamePk: Int? = null
+    private var lastRefreshDate: LocalDate? = null
 
-    fun loadGame(gamePk: Int) {
-        if (currentGamePk == gamePk && _uiState.value.gameDetails != null) return
+    fun loadGame(gamePk: Int, forceRefresh: Boolean = false) {
+        if (!forceRefresh && currentGamePk == gamePk && _uiState.value.gameDetails != null) return
 
         currentGamePk = gamePk
 
@@ -45,6 +47,7 @@ class GameDetailViewModel(
                     gameDetails = gameDetails,
                     boxscore = boxscore
                 )
+                lastRefreshDate = LocalDate.now()
             } catch (t: Throwable) {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
@@ -53,4 +56,43 @@ class GameDetailViewModel(
             }
         }
     }
+
+    fun refresh() {
+        currentGamePk?.let { loadGame(it, forceRefresh = true) }
+    }
+
+    fun refreshIfNeeded() {
+        if (shouldRefresh()) {
+            currentGamePk?.let { loadGame(it, forceRefresh = true) }
+        }
+    }
+
+    fun shouldRefresh(today: LocalDate = LocalDate.now()): Boolean {
+        val staleFromPreviousDay = lastRefreshDate?.isBefore(today) ?: true
+        val liveGame = _uiState.value.gameDetails?.status.isLiveGameStatus()
+        return staleFromPreviousDay || liveGame
+    }
+}
+
+private fun String?.isLiveGameStatus(): Boolean {
+    if (this.isNullOrBlank()) return false
+
+    val status = this.lowercase()
+
+    return listOf(
+        "live",
+        "in progress",
+        "mid",
+        "top",
+        "bottom",
+        "inning",
+        "final/10",
+        "delayed",
+        "warmup",
+        "pregame"
+    ).any { token -> token in status } &&
+            "final" !in status &&
+            "postponed" !in status &&
+            "canceled" !in status &&
+            "cancelled" !in status
 }

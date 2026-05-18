@@ -1,20 +1,24 @@
 package nicholos.tyler.dugout.ui.components
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ListItemDefaults
-import androidx.compose.material3.ListItemShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -24,11 +28,23 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
+import coil3.request.crossfade
+import coil3.svg.SvgDecoder
+import java.util.Locale
 
+/**
+ * Screen-agnostic model for standings rows.
+ * Map domain/API standings into this model before rendering the card.
+ */
 data class DivisionStandingUiModel(
     val rank: Int,
     val teamId: Int,
@@ -37,10 +53,77 @@ data class DivisionStandingUiModel(
     val wins: Int,
     val losses: Int,
     val gamesBack: String,
+    val winPct: Float = 0.0F,
     val isSelectedTeam: Boolean = false
 )
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+fun DivisionStandingsCard(
+    title: String,
+    standings: List<DivisionStandingUiModel>,
+    modifier: Modifier = Modifier,
+    titleModifier: Modifier = Modifier,
+    showHeaderAction: Boolean = false,
+    headerActionText: String = "View League",
+    onHeaderActionClick: (() -> Unit)? = null,
+    onTeamClick: ((DivisionStandingUiModel) -> Unit)? = null,
+    subtitle: (DivisionStandingUiModel) -> String = { team ->
+        "PCT ${String.format(Locale.US, "%.3f", team.winPct).removePrefix("0") }"
+    }
+) {
+    Column(modifier = modifier.fillMaxWidth()) {
+        if (showHeaderAction && onHeaderActionClick != null) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+
+                TextButton(onClick = onHeaderActionClick) {
+                    Text(headerActionText)
+                }
+            }
+        } else {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = titleModifier.padding(horizontal = 12.dp, vertical = 8.dp)
+            )
+        }
+
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap)
+        ) {
+            standings.forEachIndexed { index, team ->
+                DivisionStandingRow(
+                    team = team,
+                    subtitle = subtitle(team),
+                    shape = ListItemDefaults.segmentedShapes(
+                        index = index,
+                        count = standings.size
+                    ).shape,
+                    onClick = onTeamClick?.let { click ->
+                        { click(team) }
+                    }
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Backward-compatible wrapper for screens that already use DivisionStandingsSection.
+ */
 @Composable
 fun DivisionStandingsSection(
     title: String,
@@ -49,160 +132,172 @@ fun DivisionStandingsSection(
     onTeamClick: ((DivisionStandingUiModel) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
-    Column(
-        modifier = modifier.fillMaxWidth()
+    DivisionStandingsCard(
+        title = title,
+        standings = standings,
+        modifier = modifier,
+        showHeaderAction = true,
+        onHeaderActionClick = onViewLeagueClick,
+        onTeamClick = onTeamClick
+    )
+}
+
+@Composable
+private fun DivisionStandingRow(
+    team: DivisionStandingUiModel,
+    subtitle: String,
+    shape: Shape,
+    onClick: (() -> Unit)?,
+    modifier: Modifier = Modifier
+) {
+    val isDark = isSystemInDarkTheme()
+    val selected = team.isSelectedTeam
+
+    val containerColor = when {
+        selected -> MaterialTheme.colorScheme.secondaryContainer
+        isDark -> MaterialTheme.colorScheme.surfaceContainerHigh
+        else -> MaterialTheme.colorScheme.surfaceContainer
+    }
+
+    val contentColor = if (selected) {
+        MaterialTheme.colorScheme.onSecondaryContainer
+    } else {
+        MaterialTheme.colorScheme.onSurface
+    }
+
+    val secondaryContentColor = if (selected) {
+        MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.72f)
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
+
+    val borderColor = if (selected) {
+        MaterialTheme.colorScheme.primary.copy(alpha = if (isDark) 0.34f else 0.22f)
+    } else {
+        MaterialTheme.colorScheme.outlineVariant.copy(alpha = if (isDark) 0.32f else 0.18f)
+    }
+
+    Surface(
+        modifier = modifier
+            .fillMaxWidth()
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
+        shape = shape,
+        color = containerColor,
+        //border = BorderStroke(1.dp, borderColor),
+        tonalElevation = if (selected) 1.dp else 0.dp,
+        shadowElevation = 0.dp
     ) {
         Row(
             modifier = Modifier
-                .fillMaxWidth(),
-
+                .fillMaxWidth()
+                .height(72.dp)
+                .padding(horizontal = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-
-            Spacer(modifier = Modifier.weight(1f))
-
-            TextButton(onClick = onViewLeagueClick) {
-                Text("View League")
+            Box(
+                modifier = Modifier.width(40.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                RankBadge(
+                    rank = team.rank.takeIf { it > 0 }?.toString() ?: "-",
+                    selected = selected
+                )
             }
-        }
 
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap)
-        ) {
-            standings.forEachIndexed { index, team ->
-                StandingsRow(
-                    team = team,
-                    shape = ListItemDefaults.segmentedShapes(
-                        index = index,
-                        count = standings.size
-                    ),
-                    onClick = if (onTeamClick != null) {
-                        { onTeamClick(team) }
-                    } else {
-                        null
-                    }
+            Box(
+                modifier = Modifier.width(52.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                TeamLogo(
+                    teamId = team.teamId,
+                    teamName = team.teamName,
+                    selected = selected
+                )
+            }
+
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 8.dp, end = 8.dp),
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = team.teamName,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = if (selected) FontWeight.ExtraBold else FontWeight.SemiBold,
+                    color = contentColor,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = secondaryContentColor,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            Column(
+                modifier = Modifier.width(72.dp),
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = "${team.wins}-${team.losses}",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = contentColor,
+                    textAlign = TextAlign.End,
+                    maxLines = 1
+                )
+
+                Text(
+                    text = "GB ${team.gamesBack}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = secondaryContentColor,
+                    textAlign = TextAlign.End,
+                    maxLines = 1
                 )
             }
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun StandingsRow(
-    team: DivisionStandingUiModel,
-    shape: ListItemShapes,
-    onClick: (() -> Unit)?,
+private fun TeamLogo(
+    teamId: Int,
+    teamName: String,
+    selected: Boolean,
     modifier: Modifier = Modifier
 ) {
-    val selected = team.isSelectedTeam
+    val context = LocalContext.current
+    val imageUrl = "https://www.mlbstatic.com/team-logos/$teamId.svg"
 
-    val containerColor = if (selected) {
-        MaterialTheme.colorScheme.primaryContainer
+    val logoBackground = if (selected) {
+        MaterialTheme.colorScheme.primary.copy(alpha = 0.10f)
     } else {
-        MaterialTheme.colorScheme.surfaceContainer
+        MaterialTheme.colorScheme.surfaceContainerHighest
     }
 
-    val contentColor = if (selected) {
-        MaterialTheme.colorScheme.onPrimaryContainer
-    } else {
-        MaterialTheme.colorScheme.onSurface
-    }
-
-    val secondaryContentColor = if (selected) {
-        MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.72f)
-    } else {
-        MaterialTheme.colorScheme.onSurfaceVariant
-    }
-
-    Surface(
+    Box(
         modifier = modifier
-            .fillMaxWidth()
-            .then(
-                if (onClick != null) {
-                    Modifier.clickable(onClick = onClick)
-                } else {
-                    Modifier
-                }
-            ),
-        shape = shape.shape,
-        color = containerColor,
-        tonalElevation = if (selected) 3.dp else 0.dp,
-        shadowElevation = 0.dp
+            .size(42.dp)
+            .background(logoBackground, CircleShape)
+            .padding(if (selected) 5.dp else 6.dp),
+        contentAlignment = Alignment.Center
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(
-                    horizontal = 14.dp,
-                    vertical = if (selected) 16.dp else 12.dp
-                ),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            RankBadge(
-                rank = teamRankText(team, fallback = "–"),
-                selected = selected
-            )
-
-//            Spacer(modifier = Modifier.size(12.dp))
-//
-//            TeamLogoPlaceholder(
-//                abbreviation = team.teamAbbreviation,
-//                selected = selected
-//            )
-
-            Spacer(modifier = Modifier.size(12.dp))
-
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
-                Text(
-                    text = team.teamName,
-                    style = if (selected) {
-                        MaterialTheme.typography.titleLarge
-                    } else {
-                        MaterialTheme.typography.titleMedium
-                    },
-                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                    color = contentColor
-                )
-
-                Text(
-                    text = team.teamAbbreviation,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = secondaryContentColor
-                )
-            }
-
-            Column(
-                horizontalAlignment = Alignment.End
-            ) {
-                Text(
-                    text = "${team.wins}-${team.losses}",
-                    style = if (selected) {
-                        MaterialTheme.typography.titleMedium
-                    } else {
-                        MaterialTheme.typography.titleSmall
-                    },
-                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                    color = contentColor
-                )
-
-                Text(
-                    text = "GB ${team.gamesBack}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = secondaryContentColor
-                )
-            }
-        }
+        AsyncImage(
+            model = ImageRequest.Builder(context)
+                .data(imageUrl)
+                .decoderFactory(SvgDecoder.Factory())
+                .crossfade(true)
+                .build(),
+            contentDescription = "$teamName logo",
+            contentScale = ContentScale.Fit,
+            modifier = Modifier.fillMaxSize()
+        )
     }
 }
 
@@ -226,52 +321,6 @@ private fun RankBadge(
     val containerColor = if (selected) {
         MaterialTheme.colorScheme.primary
     } else {
-        MaterialTheme.colorScheme.surfaceContainerHighest
-    }
-
-    val contentColor = if (selected) {
-        MaterialTheme.colorScheme.onPrimary
-    } else {
-        MaterialTheme.colorScheme.onSurfaceVariant
-    }
-
-    Box(
-        modifier = modifier
-            .size(if (selected) 34.dp else 28.dp)
-            .clip(shape)
-            .background(containerColor),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = rank,
-            style = MaterialTheme.typography.labelLarge,
-            color = contentColor,
-            fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.Center
-        )
-    }
-}
-
-@Composable
-private fun TeamLogoPlaceholder(
-    abbreviation: String,
-    selected: Boolean,
-    modifier: Modifier = Modifier
-) {
-    val shape: Shape = if (selected) {
-        RoundedCornerShape(
-            topStart = 20.dp,
-            topEnd = 12.dp,
-            bottomEnd = 20.dp,
-            bottomStart = 12.dp
-        )
-    } else {
-        CircleShape
-    }
-
-    val containerColor = if (selected) {
-        MaterialTheme.colorScheme.primary
-    } else {
         MaterialTheme.colorScheme.secondaryContainer
     }
 
@@ -283,58 +332,29 @@ private fun TeamLogoPlaceholder(
 
     Box(
         modifier = modifier
-            .size(if (selected) 42.dp else 36.dp)
+            .size(34.dp)
             .clip(shape)
             .background(containerColor),
         contentAlignment = Alignment.Center
     ) {
         Text(
-            text = abbreviation.take(3),
-            style = MaterialTheme.typography.labelMedium,
+            text = rank,
+            style = MaterialTheme.typography.labelLarge,
             color = contentColor,
-            fontWeight = FontWeight.Bold
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center,
+            maxLines = 1
         )
     }
 }
 
-/**
- * Replace this with your real rank from standings data.
- */
-private fun teamRankText(
-    team: DivisionStandingUiModel,
-    fallback: String
-): String {
-    return team.rank.takeIf { it > 0 }?.toString() ?: fallback
-}
-
-@Preview(
-    name = "Division Standings - Light",
-    showBackground = true
-)
+@Preview(name = "Division Standings Card", showBackground = true)
 @Composable
-private fun DivisionStandingsPreview() {
+private fun DivisionStandingsCardPreview() {
     MaterialTheme {
-        DivisionStandingsSection(
-            title = "NL East Standings",
+        DivisionStandingsCard(
+            title = "NL East",
             standings = sampleStandings(),
-            onViewLeagueClick = {},
-            onTeamClick = {}
-        )
-    }
-}
-
-@Preview(
-    name = "Division Standings - Dark",
-    showBackground = true,
-    uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES
-)
-@Composable
-private fun DivisionStandingsDarkPreview() {
-    MaterialTheme {
-        DivisionStandingsSection(
-            title = "NL East Standings",
-            standings = sampleStandings(),
-            onViewLeagueClick = {},
             onTeamClick = {}
         )
     }
@@ -350,7 +370,7 @@ private fun sampleStandings(): List<DivisionStandingUiModel> {
             wins = 12,
             losses = 5,
             gamesBack = "-",
-            isSelectedTeam = false
+            winPct = 0.706F
         ),
         DivisionStandingUiModel(
             rank = 2,
@@ -360,6 +380,7 @@ private fun sampleStandings(): List<DivisionStandingUiModel> {
             wins = 10,
             losses = 7,
             gamesBack = "2.0",
+            winPct = 0.588F,
             isSelectedTeam = true
         ),
         DivisionStandingUiModel(
@@ -370,27 +391,7 @@ private fun sampleStandings(): List<DivisionStandingUiModel> {
             wins = 9,
             losses = 8,
             gamesBack = "3.0",
-            isSelectedTeam = false
-        ),
-        DivisionStandingUiModel(
-            rank = 4,
-            teamId = 120,
-            teamAbbreviation = "WSH",
-            teamName = "Nationals",
-            wins = 7,
-            losses = 10,
-            gamesBack = "5.0",
-            isSelectedTeam = false
-        ),
-        DivisionStandingUiModel(
-            rank = 5,
-            teamId = 146,
-            teamAbbreviation = "MIA",
-            teamName = "Marlins",
-            wins = 6,
-            losses = 11,
-            gamesBack = "6.0",
-            isSelectedTeam = false
+            winPct = 0.529F
         )
     )
 }

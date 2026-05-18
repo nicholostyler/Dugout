@@ -18,14 +18,15 @@ interface MlbApiService {
         @Query("sportId") sportId: Int = 1,
         @Query("teamId") teamId: Int,
         @Query("season") season: Int,
-        @Query("hydrate") hydrate: String = "team,venue,linescore"
+        @Query("hydrate") hydrate: String = "team,venue,linescore,probablePitcher"
     ): ScheduleResponseDto
 
     @GET("api/v1/schedule")
     suspend fun getScheduleByDate(
         @Query("sportId") sportId: Int = 1,
         @Query("teamId") teamId: Int,
-        @Query("date") date: String
+        @Query("date") date: String,
+        @Query("hydrate") hydrate: String = "team,venue,linescore,probablePitcher"
     ): ScheduleResponseDto
 
     @GET("api/v1/schedule")
@@ -33,14 +34,15 @@ interface MlbApiService {
         @Query("sportId") sportId: Int = 1,
         @Query("teamId") teamId: Int,
         @Query("startDate") startDate: String,
-        @Query("endDate") endDate: String
+        @Query("endDate") endDate: String,
+        @Query("hydrate") hydrate: String = "team,venue,linescore,probablePitcher"
     ): ScheduleResponseDto
 
     @GET("api/v1/schedule")
     suspend fun getScheduleByDate(
         @Query("sportId") sportId: Int = 1,
         @Query("date") date: String,
-        @Query("hydrate") hydrate: String = "team,venue,linescore"
+        @Query("hydrate") hydrate: String = "team,venue,linescore,probablePitcher"
     ): ScheduleResponseDto
 
     @GET("api/v1.1/game/{gamePk}/feed/live")
@@ -56,6 +58,7 @@ interface MlbApiService {
     @GET("api/v1/teams/{teamId}/roster")
     suspend fun getRosterWithStats(
         @Path("teamId") teamId: Int,
+        @Query("season") season: Int? = null,
         @Query("rosterType") rosterType: String = "active",
         @Query("hydrate") hydrate: String =
             "person(stats(group=[hitting,pitching,fielding],type=[season]))"
@@ -86,5 +89,16 @@ interface MlbApiService {
         @Query("group") group: String,
         @Query("personId") personId: Int,
         @Query("season") season: Int? = null
+    ): StatsResponseDto
+
+    @GET("api/v1/stats/leaders")
+    suspend fun getLeagueLeaders(
+        @Query("leaderCategories") leaderCategories: String,
+        @Query("statGroup") statGroup: String,
+        @Query("season") season: Int,
+        @Query("leagueId") leagueId: String? = null,
+        @Query("statType") statType: String? = "season",
+        @Query("sportId") sportId: Int = 1,
+        @Query("limit") limit: Int = 10
     ): StatsResponseDto
 }

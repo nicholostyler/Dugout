@@ -28,6 +28,9 @@ data class GameDetails(
     val homeHits: Int = 0,
     val awayErrors: Int = 0,
     val homeErrors: Int = 0,
+    val onFirst: Boolean = false,
+    val onSecond: Boolean = false,
+    val onThird: Boolean = false,
     val innings: List<InningScore> = emptyList()
 ) {
     val inningDisplay: String

@@ -13,9 +13,34 @@ data class GameSnapshotCardUiModel(
     val isTopInning: Boolean? = null,
     val countText: String = "",
     val outsText: String = "",
+    val onFirst: Boolean = false,
+    val onSecond: Boolean = false,
+    val onThird: Boolean = false,
     val shortDate: String = "",
     val linescore: LinescoreUiModel? = null
-)
+) {
+    fun isLiveGame(): Boolean {
+        val normalized = status.lowercase()
+        return normalized.contains("live") ||
+                normalized.contains("progress") ||
+                normalized.contains("top") ||
+                normalized.contains("bot") ||
+                normalized.contains("mid") ||
+                normalized.contains("end") ||
+                inningText.isNotBlank()
+    }
+
+    fun isFinalGame(): Boolean {
+        val normalized = status.lowercase()
+        return normalized.contains("final") ||
+                normalized.contains("completed") ||
+                normalized.contains("game over")
+    }
+
+    fun isUpcomingGame(): Boolean {
+        return !isLiveGame() && !isFinalGame()
+    }
+}
 
 @Immutable
 data class LinescoreUiModel(

@@ -40,6 +40,9 @@ class DugoutViewModelFactory(
             modelClass.isAssignableFrom(LeagueViewModel::class.java) -> {
                 LeagueViewModel(leagueRepository) as T
             }
+            modelClass.isAssignableFrom(LeagueLeadersViewModel::class.java) -> {
+                LeagueLeadersViewModel(leagueRepository) as T
+            }
 
             else -> {
                 throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")

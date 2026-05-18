@@ -55,21 +55,27 @@ class GamesRepository(
 
         return response.dates
             .flatMap { it.games }
+            .distinctBy { it.gamePk }
+            .map { it.toDomain() }
+            .sortedBy { it.gameDate }
+    }
+
+    suspend fun getGamesByDate(date: LocalDate): List<Game> {
+        val dateString = date.format(DateTimeFormatter.ISO_LOCAL_DATE)
+
+        val response = api.getScheduleByDate(
+            date = dateString
+        )
+
+        return response.dates
+            .flatMap { it.games }
+            .distinctBy { it.gamePk }
             .map { it.toDomain() }
             .sortedBy { it.gameDate }
     }
 
     suspend fun getTodaysGames(): List<Game> {
-        val today = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)
-
-        val response = api.getScheduleByDate(
-            date = today
-        )
-
-        return response.dates
-            .flatMap { it.games }
-            .map { it.toDomain() }
-            .sortedBy { it.gameDate }
+        return getGamesByDate(LocalDate.now())
     }
 
     suspend fun getStretchGames(
@@ -89,6 +95,7 @@ class GamesRepository(
 
         return response.dates
             .flatMap { it.games }
+            .distinctBy { it.gamePk }
             .map { it.toDomain() }
             .sortedBy { it.gameDate }
     }
@@ -109,11 +116,11 @@ class GamesRepository(
     suspend fun getTeamMVPs(
         teamId: Int
     ): TeamMVPs {
-        return api.getRosterWithStats(teamId).toTeamMVPs()
+        return api.getRosterWithStats(teamId, season = LocalDate.now().year).toTeamMVPs()
     }
 
     suspend fun getTeamRoster(teamId: Int): TeamRoster {
-        return api.getRosterWithStats(teamId).toTeamRoster()
+        return api.getRosterWithStats(teamId, season = LocalDate.now().year).toTeamRoster()
     }
 
     suspend fun getPlayerDetails(

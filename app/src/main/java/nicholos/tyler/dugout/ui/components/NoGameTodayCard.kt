@@ -11,6 +11,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.tooling.preview.Preview
+import nicholos.tyler.dugout.ui.theme.DugoutTheme
 
 @Composable
 fun NoGameTodayCard(
@@ -19,7 +21,7 @@ fun NoGameTodayCard(
     ElevatedCard(
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.elevatedCardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainer
+            containerColor = MaterialTheme.colorScheme.primaryContainer
         )
     ) {
         Column(
@@ -31,8 +33,16 @@ fun NoGameTodayCard(
             Text(
                 text = "No game today",
                 style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.onSurface
+                color = MaterialTheme.colorScheme.onPrimaryContainer
             )
         }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun NoGameTodayCardPreview() {
+    DugoutTheme {
+        NoGameTodayCard(modifier = Modifier.padding(16.dp))
     }
 }

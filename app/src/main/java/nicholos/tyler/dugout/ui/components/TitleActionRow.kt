@@ -25,14 +25,14 @@ fun TitleActionRow(
     ) {
         Text(
             text = title,
-            style = MaterialTheme.typography.titleLarge,
+            style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurface,
         )
 
         TextButton(onClick = onActionClick) {
             Text(
                 text = actionText,
-                style = MaterialTheme.typography.labelLarge,
+                style = MaterialTheme.typography.labelMedium,
             )
         }
     }

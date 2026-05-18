@@ -2,14 +2,11 @@ package nicholos.tyler.dugout.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -178,6 +175,7 @@ private fun TeamPageScreenContentPreview() {
                             id = 1,
                             shortDate = "Mar 26",
                             year = "2026",
+                            date = "2026-03-26",
                             matchup = "PHI @ ATL",
                             ballpark = "Truist Park",
                             score = "5 - 3",
@@ -188,6 +186,7 @@ private fun TeamPageScreenContentPreview() {
                             id = 2,
                             shortDate = "Mar 27",
                             year = "2026",
+                            date = "2026-03-27",
                             matchup = "PHI @ ATL",
                             ballpark = "Truist Park",
                             score = "0 - 0",

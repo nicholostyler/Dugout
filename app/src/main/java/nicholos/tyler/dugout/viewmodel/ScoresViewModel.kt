@@ -11,6 +11,8 @@ import nicholos.tyler.dugout.data.repository.GamesRepository
 import nicholos.tyler.dugout.model.mapper.toScoresSnapshotCardUiModel
 import nicholos.tyler.dugout.model.ui.ScoresUiState
 
+import java.time.LocalDate
+
 class ScoresViewModel(
     private val repository: GamesRepository
 ) : ViewModel() {
@@ -18,28 +20,63 @@ class ScoresViewModel(
     private val _uiState = MutableStateFlow(ScoresUiState())
     val uiState: StateFlow<ScoresUiState> = _uiState.asStateFlow()
 
+    private var lastRefreshDate: LocalDate? = null
+
     init {
-        loadScores()
+        loadScores(LocalDate.now())
     }
 
-    fun loadScores() {
+    fun onDateSelected(date: LocalDate) {
+        _uiState.update { it.copy(selectedDate = date) }
+        loadScores(date)
+    }
+
+    fun loadScores(date: LocalDate, forceRefresh: Boolean = false) {
+        if (!forceRefresh && lastRefreshDate == date && _uiState.value.games.isNotEmpty()) return
+
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
 
             runCatching {
-                repository.getTodaysGames()
+                repository.getGamesByDate(date)
                     .map { it.toScoresSnapshotCardUiModel() }
             }.onSuccess { games ->
-                _uiState.value = ScoresUiState(
-                    isLoading = false,
-                    games = games
-                )
+                _uiState.update { 
+                    it.copy(
+                        isLoading = false,
+                        games = games,
+                        selectedDate = date
+                    )
+                }
+                lastRefreshDate = date
             }.onFailure { throwable ->
-                _uiState.value = ScoresUiState(
-                    isLoading = false,
-                    error = throwable.message ?: "Failed to load scores"
-                )
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        error = throwable.message ?: "Failed to load scores"
+                    )
+                }
             }
         }
     }
+
+    fun refreshIfNeeded() {
+        if (shouldRefresh()) {
+            loadScores(_uiState.value.selectedDate, forceRefresh = true)
+        }
+    }
+
+    private fun shouldRefresh(): Boolean {
+        val selectedDate = _uiState.value.selectedDate
+        val isToday = selectedDate == LocalDate.now()
+        val hasLiveGames = _uiState.value.games.any { it.status.isLiveGameStatus() }
+        return isToday || hasLiveGames
+    }
+}
+
+private fun String?.isLiveGameStatus(): Boolean {
+    if (this.isNullOrBlank()) return false
+    val status = this.lowercase()
+    return listOf("live", "in progress", "mid", "top", "bottom", "inning", "delayed", "warmup", "pregame")
+        .any { it in status } && "final" !in status && "postponed" !in status
 }

@@ -2,6 +2,7 @@ package nicholos.tyler.dugout.ui.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -16,6 +17,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -27,20 +29,24 @@ fun GameCard(
     game: GameCardUiModel,
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
+    shape: Shape = MaterialTheme.shapes.large,
+    border: BorderStroke? = null
 ) {
-    val containerColor =
-        if (game.isSelected) {
-            MaterialTheme.colorScheme.secondaryContainer
-        } else {
-            MaterialTheme.colorScheme.surface
-        }
+    val isDark = isSystemInDarkTheme()
+    val containerColor = when {
+        game.isSelected -> MaterialTheme.colorScheme.secondaryContainer
+        isDark -> MaterialTheme.colorScheme.surfaceContainerHigh
+        else -> MaterialTheme.colorScheme.surfaceContainer
+    }
 
-    val borderColor =
+    val borderColor = border ?: BorderStroke(
+        1.dp,
         if (game.isSelected) {
-            MaterialTheme.colorScheme.outline
+            MaterialTheme.colorScheme.primary.copy(alpha = if (isDark) 0.34f else 0.22f)
         } else {
-            MaterialTheme.colorScheme.outlineVariant
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = if (isDark) 0.32f else 0.18f)
         }
+    )
 
     Card(
         modifier = modifier
@@ -48,9 +54,9 @@ fun GameCard(
             .then(
                 if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier
             ),
-        shape = MaterialTheme.shapes.large,
+        shape = shape,
         colors = CardDefaults.cardColors(containerColor = containerColor),
-        border = BorderStroke(1.dp, borderColor),
+        border = borderColor,
     ) {
         GameRowContent(
             game = game,
@@ -146,6 +152,7 @@ private fun GameCardPreview() {
                 id = 1,
                 shortDate = "Mar 26",
                 year = "2026",
+                date = "2026-03-26",
                 matchup = "Phillies @ Braves",
                 ballpark = "Truist Park",
                 score = "5 - 3",
@@ -165,6 +172,7 @@ private fun GameCardSelectedPreview() {
                 id = 2,
                 shortDate = "Mar 27",
                 year = "2026",
+                date = "2026-03-27",
                 matchup = "Phillies @ Mets",
                 ballpark = "Citi Field",
                 score = "—",
@@ -190,6 +198,7 @@ private fun GameCardLossPreview() {
                 score = "2 - 6",
                 resultText = "Loss",
                 outcome = GameOutcome.Loss,
+                date = "2026, 2, 10"
             )
         )
     }

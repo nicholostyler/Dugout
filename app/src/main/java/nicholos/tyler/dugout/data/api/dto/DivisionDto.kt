@@ -8,6 +8,9 @@ data class DivisionDto(
     @SerialName("id")
     val id: Int? = null,
 
+    @SerialName("name")
+    val name: String? = null,
+
     @SerialName("link")
     val link: String? = null
 )

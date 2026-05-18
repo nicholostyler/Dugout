@@ -10,7 +10,25 @@ data class Game(
     val teams: GameTeams? = null,
     val venue: Venue? = null,
     val scheduledInnings: Int? = null,
-    val seriesDescription: String? = null
+    val seriesDescription: String? = null,
+    val linescore: Linescore? = null
+)
+
+data class Linescore(
+    val currentInning: Int? = null,
+    val inningState: String? = null,
+    val inningHalf: String? = null,
+    val isTopInning: Boolean? = null,
+    val scheduledInnings: Int? = null,
+    val runs: Int? = null,
+    val hits: Int? = null,
+    val errors: Int? = null,
+    val balls: Int? = null,
+    val strikes: Int? = null,
+    val outs: Int? = null,
+    val onFirst: Boolean = false,
+    val onSecond: Boolean = false,
+    val onThird: Boolean = false
 )
 
 data class GameStatus(
@@ -27,7 +45,13 @@ data class GameTeams(
 data class TeamSide(
     val team: Team? = null,
     val leagueRecord: LeagueRecord? = null,
-    val score: Int? = null
+    val score: Int? = null,
+    val probablePitcher: ProbablePitcher? = null
+)
+
+data class ProbablePitcher(
+    val id: Int? = null,
+    val fullName: String? = null
 )
 
 data class Team(

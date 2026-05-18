@@ -18,9 +18,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import nicholos.tyler.dugout.model.ui.MvpCategoryUiModel
 import nicholos.tyler.dugout.model.ui.TeamMVPsUiModel
+import nicholos.tyler.dugout.ui.theme.DugoutTheme
 
 @Composable
 fun TeamMVPSection(
@@ -38,13 +40,13 @@ fun TeamMVPSection(
         ) {
             Text(
                 text = "Team MVPs",
-                style = MaterialTheme.typography.titleLarge,
+                style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface
             )
 
             Text(
                 text = "Team Roster",
-                style = MaterialTheme.typography.labelLarge,
+                style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.clickable(onClick = onViewRosterClick)
             )
@@ -60,6 +62,45 @@ fun TeamMVPSection(
     }
 }
 
+@Preview(showBackground = true)
+@Composable
+private fun TeamMVPSectionPreview() {
+    DugoutTheme {
+        TeamMVPSection(
+            model = TeamMVPsUiModel(
+                categories = listOf(
+                    MvpCategoryUiModel(
+                        label = "AVG",
+                        value = ".324",
+                        playerId = 1,
+                        playerName = "Ronald Acuña Jr."
+                    ),
+                    MvpCategoryUiModel(
+                        label = "HR",
+                        value = "41",
+                        playerId = 2,
+                        playerName = "Matt Olson"
+                    ),
+                    MvpCategoryUiModel(
+                        label = "RBI",
+                        value = "139",
+                        playerId = 3,
+                        playerName = "Matt Olson"
+                    ),
+                    MvpCategoryUiModel(
+                        label = "OPS",
+                        value = "1.012",
+                        playerId = 4,
+                        playerName = "Ronald Acuña Jr."
+                    )
+                )
+            ),
+            onViewRosterClick = {},
+            modifier = Modifier.padding(16.dp)
+        )
+    }
+}
+
 @Composable
 private fun MVPStatCard(
     model: MvpCategoryUiModel,
@@ -70,7 +111,7 @@ private fun MVPStatCard(
             .width(148.dp)
             .height(120.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
         ),
     ) {
         Column(
@@ -92,7 +133,7 @@ private fun MVPStatCard(
             Text(
                 text = model.playerName,
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )

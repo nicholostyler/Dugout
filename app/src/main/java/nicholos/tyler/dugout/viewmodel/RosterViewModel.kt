@@ -11,6 +11,8 @@ import nicholos.tyler.dugout.data.repository.GamesRepository
 import nicholos.tyler.dugout.model.mapper.toRosterUiState
 import nicholos.tyler.dugout.model.ui.RosterUiState
 
+import java.time.LocalDate
+
 class RosterViewModel(
     private val repository: GamesRepository
 ) : ViewModel() {
@@ -19,6 +21,7 @@ class RosterViewModel(
     val uiState: StateFlow<RosterUiState> = _uiState.asStateFlow()
 
     private var loadedTeamId: Int? = null
+    private var lastRefreshDate: LocalDate? = null
 
     fun loadRoster(teamId: Int, forceRefresh: Boolean = false) {
         if (!forceRefresh && loadedTeamId == teamId && _uiState.value.sections.isNotEmpty()) {
@@ -48,12 +51,19 @@ class RosterViewModel(
 
                 loadedTeamId = teamId
                 _uiState.value = roster.toRosterUiState(mvpPlayerIds = mvpPlayerIds)
+                lastRefreshDate = LocalDate.now()
             } catch (t: Throwable) {
                 _uiState.value = RosterUiState(
                     isLoading = false,
                     error = t.message ?: "Failed to load roster"
                 )
             }
+        }
+    }
+
+    fun refreshIfNeeded(teamId: Int) {
+        if (lastRefreshDate?.isBefore(LocalDate.now()) ?: true) {
+            loadRoster(teamId, forceRefresh = true)
         }
     }
 }

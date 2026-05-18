@@ -65,6 +65,7 @@ import nicholos.tyler.dugout.ui.theme.DugoutTheme
 import nicholos.tyler.dugout.viewmodel.DugoutViewModelFactory
 import nicholos.tyler.dugout.viewmodel.GameDetailViewModel
 import nicholos.tyler.dugout.viewmodel.HomeViewModel
+import nicholos.tyler.dugout.viewmodel.LeagueLeadersViewModel
 import nicholos.tyler.dugout.viewmodel.LeagueViewModel
 import nicholos.tyler.dugout.viewmodel.PlayerViewModel
 import nicholos.tyler.dugout.viewmodel.RosterViewModel
@@ -91,6 +92,7 @@ class MainActivity : ComponentActivity() {
                 val scoresViewModel: ScoresViewModel = viewModel(factory = factory)
                 val teamPageViewModel: TeamPageViewModel = viewModel(factory = factory)
                 val playerViewModel: PlayerViewModel = viewModel(factory = factory)
+                val statsViewModel: LeagueLeadersViewModel = viewModel(factory = factory)
 
                 DugoutApp(
                     homeViewModel = homeViewModel,
@@ -100,7 +102,8 @@ class MainActivity : ComponentActivity() {
                     leagueViewModel = leagueViewModel,
                     scoresViewModel = scoresViewModel,
                     teamPageViewModel = teamPageViewModel,
-                    playerViewModel = playerViewModel
+                    playerViewModel = playerViewModel,
+                    statsViewModel = statsViewModel
                 )
             }
         }
@@ -117,8 +120,8 @@ private fun DugoutApp(
     leagueViewModel: LeagueViewModel,
     scoresViewModel: ScoresViewModel,
     teamPageViewModel: TeamPageViewModel,
-    playerViewModel: PlayerViewModel
-
+    playerViewModel: PlayerViewModel,
+    statsViewModel: LeagueLeadersViewModel
 ) {
     val navigationState = rememberDugoutNavigationState()
     val currentRoute = navigationState.backStack.lastOrNull()
@@ -159,9 +162,78 @@ private fun DugoutApp(
                             }
                         }
 
+                        is PlayerRoute -> {
+                            IconButton(
+                                onClick = { playerViewModel.refreshIfNeeded() }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Refresh,
+                                    contentDescription = "Refresh"
+                                )
+                            }
+                        }
+
+                        is TeamRosterRoute -> {
+                            IconButton(
+                                onClick = { rosterViewModel.refreshIfNeeded(teamId = route.teamId) }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Refresh,
+                                    contentDescription = "Refresh"
+                                )
+                            }
+                        }
+
+                        is TeamScheduleRoute -> {
+                            IconButton(
+                                onClick = { scheduleViewModel.refreshIfNeeded(teamId = route.teamId, season = route.season) }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Refresh,
+                                    contentDescription = "Refresh"
+                                )
+                            }
+                        }
+
                         is TeamPageRoute -> {
                             IconButton(
                                 onClick = { teamPageViewModel.refreshIfNeeded(teamId = route.teamId) }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Refresh,
+                                    contentDescription = "Refresh"
+                                )
+                            }
+                        }
+
+                        is ScoresRoute -> {
+                            IconButton(
+                                onClick = { scoresViewModel.refreshIfNeeded() }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Refresh,
+                                    contentDescription = "Refresh"
+                                )
+                            }
+                        }
+
+                        is LeagueRoute -> {
+                            IconButton(
+                                onClick = { 
+                                    leagueViewModel.refreshIfNeeded()
+                                    statsViewModel.refreshIfNeeded()
+                                }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Refresh,
+                                    contentDescription = "Refresh"
+                                )
+                            }
+                        }
+
+                        is GameDetailRoute -> {
+                            IconButton(
+                                onClick = { detailViewModel.refresh() }
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Refresh,
@@ -306,13 +378,12 @@ private fun DugoutApp(
                     LeagueScreen(
                         modifier = Modifier.padding(innerPadding),
                         viewModel = leagueViewModel,
+                        statsViewModel = statsViewModel,
                         onTeamClick = { teamId ->
                             navigationState.navigateToTeamPage(teamId)
                         }
                     )
                 }
-
-
 
                 entry<GameDetailRoute> { route ->
                     GameDetailScreen(

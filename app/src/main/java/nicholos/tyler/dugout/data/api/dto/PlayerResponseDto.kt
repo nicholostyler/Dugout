@@ -63,7 +63,10 @@ data class NamedIdDto(
     val id: Int? = null,
 
     @SerialName("name")
-    val name: String? = null
+    val name: String? = null,
+
+    @SerialName("fullName")
+    val fullName: String? = null
 )
 
 @Serializable

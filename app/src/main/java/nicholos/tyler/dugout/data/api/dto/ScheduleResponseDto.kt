@@ -45,7 +45,10 @@ data class GameDto(
     val scheduledInnings: Int? = null,
 
     @SerialName("seriesDescription")
-    val seriesDescription: String? = null
+    val seriesDescription: String? = null,
+
+    @SerialName("linescore")
+    val linescore: LinescoreDto? = null
 )
 
 @Serializable
@@ -78,7 +81,19 @@ data class TeamSideDto(
     val leagueRecord: LeagueRecordDto? = null,
 
     @SerialName("score")
-    val score: Int? = null
+    val score: Int? = null,
+
+    @SerialName("probablePitcher")
+    val probablePitcher: ProbablePitcherDto? = null
+)
+
+@Serializable
+data class ProbablePitcherDto(
+    @SerialName("id")
+    val id: Int? = null,
+
+    @SerialName("fullName")
+    val fullName: String? = null
 )
 
 @Serializable

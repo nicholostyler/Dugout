@@ -10,6 +10,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import nicholos.tyler.dugout.data.repository.GamesRepository
 import nicholos.tyler.dugout.model.domain.Game
+import nicholos.tyler.dugout.model.domain.MlbTeams
 import nicholos.tyler.dugout.model.mapper.ballpark
 import nicholos.tyler.dugout.model.mapper.matchup
 import nicholos.tyler.dugout.model.mapper.outcomeFor
@@ -19,8 +20,15 @@ import nicholos.tyler.dugout.model.mapper.shortDate
 import nicholos.tyler.dugout.model.mapper.year
 import nicholos.tyler.dugout.model.ui.GameCardUiModel
 
+import java.time.LocalDate
+
+enum class ScheduleView {
+    List, Calendar, Series
+}
+
 data class TeamScheduleUiState(
     val isLoading: Boolean = false,
+    val selectedView: ScheduleView = ScheduleView.List,
     val gameRows: List<GameCardUiModel> = emptyList(),
     val selectedGamePk: Int? = null,
     val error: String? = null
@@ -36,9 +44,11 @@ class TeamScheduleViewModel(
     private var currentGames: List<Game> = emptyList()
     private var currentTeamId: Int? = null
     private var currentSeason: Int? = null
+    private var lastRefreshDate: LocalDate? = null
 
-    fun loadSeasonGames(teamId: Int, season: Int) {
+    fun loadSeasonGames(teamId: Int, season: Int, forceRefresh: Boolean = false) {
         if (
+            !forceRefresh &&
             currentTeamId == teamId &&
             currentSeason == season &&
             currentGames.isNotEmpty()
@@ -67,18 +77,25 @@ class TeamScheduleViewModel(
                     )
                 }
 
-                _uiState.value = TeamScheduleUiState(
+                _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     gameRows = rows,
                     selectedGamePk = selectedGamePk,
                     error = null
                 )
+                lastRefreshDate = LocalDate.now()
             } catch (t: Throwable) {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     error = t.message ?: "Failed to load schedule"
                 )
             }
+        }
+    }
+
+    fun refreshIfNeeded(teamId: Int, season: Int) {
+        if (lastRefreshDate?.isBefore(LocalDate.now()) ?: true) {
+            loadSeasonGames(teamId, season, forceRefresh = true)
         }
     }
 
@@ -101,6 +118,10 @@ class TeamScheduleViewModel(
         }
     }
 
+    fun selectView(view: ScheduleView) {
+        _uiState.value = _uiState.value.copy(selectedView = view)
+    }
+
     private fun buildGameRows(
         games: List<Game>,
         teamId: Int,
@@ -119,15 +140,24 @@ private fun Game.toGameCardUiModel(
     teamId: Int,
     selectedGamePk: Int?
 ): GameCardUiModel {
+    val isHome = teams?.home?.team?.id == teamId
+    val opponent = if (isHome) teams?.away?.team else teams?.home?.team
+    val opponentId = opponent?.id ?: 0
+    val opponentAbbr = MlbTeams.byId[opponentId]?.abbreviation ?: opponent?.name ?: ""
+
     return GameCardUiModel(
         id = gamePk,
         shortDate = shortDate(),
         year = year(),
+        date = gameDate ?: "",
         matchup = matchup(),
         ballpark = ballpark(),
         score = scoreDisplay(),
         resultText = resultFor(teamId),
         outcome = outcomeFor(teamId),
-        isSelected = selectedGamePk == gamePk
+        isSelected = selectedGamePk == gamePk,
+        isHome = isHome,
+        opponentAbbreviation = opponentAbbr,
+        seriesDescription = seriesDescription
     )
 }

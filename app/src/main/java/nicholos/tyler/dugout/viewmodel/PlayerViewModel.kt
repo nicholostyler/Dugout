@@ -17,6 +17,8 @@ import nicholos.tyler.dugout.model.ui.PlayerSplitStatsUiModel
 import nicholos.tyler.dugout.model.ui.PlayerStatRange
 import nicholos.tyler.dugout.model.ui.PlayerUiState
 
+import java.time.LocalDate
+
 class PlayerViewModel(
     private val repository: GamesRepository
 ) : ViewModel() {
@@ -24,9 +26,14 @@ class PlayerViewModel(
     private val _uiState = MutableStateFlow(PlayerUiState(isLoading = true))
     val uiState: StateFlow<PlayerUiState> = _uiState.asStateFlow()
 
-    fun loadPlayer(playerId: Int, season: Int = 2026) {
+    private var lastPlayerId: Int? = null
+    private var lastRefreshDate: LocalDate? = null
+
+    fun loadPlayer(playerId: Int, season: Int = 2026, forceRefresh: Boolean = false) {
+        if (!forceRefresh && lastPlayerId == playerId && _uiState.value.player != null) return
+
         viewModelScope.launch {
-            _uiState.value = PlayerUiState(isLoading = true)
+            _uiState.value = _uiState.value.copy(isLoading = true)
 
             runCatching<PlayerDetails> {
                 repository.getPlayerDetails(playerId, season)
@@ -39,12 +46,20 @@ class PlayerViewModel(
                     selectedCategory = resolveDefaultCategory(playerUiModel),
                     selectedRange = PlayerStatRange.SEASON
                 )
+                lastPlayerId = playerId
+                lastRefreshDate = LocalDate.now()
             }.onFailure { throwable ->
-                _uiState.value = PlayerUiState(
+                _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     error = throwable.message ?: "Unable to load player"
                 )
             }
+        }
+    }
+
+    fun refreshIfNeeded() {
+        if (lastRefreshDate?.isBefore(LocalDate.now()) ?: true) {
+            lastPlayerId?.let { loadPlayer(it, forceRefresh = true) }
         }
     }
 

@@ -2,17 +2,11 @@ package nicholos.tyler.dugout.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -141,7 +135,8 @@ fun HomeScreenContent(
                         DivisionStandingsSection(
                             title = uiState.divisionTitle,
                             standings = uiState.divisionStandings,
-                            onViewLeagueClick = onViewLeagueClick
+                            onViewLeagueClick = onViewLeagueClick,
+                            modifier = Modifier.fillMaxWidth()
                         )
                     }
                 }
@@ -169,7 +164,9 @@ private fun HomeScreenPreview() {
                     gameId = 1,
                     leftTeam = TeamScoreUiModel(MlbTeams.get(143), "5"),
                     rightTeam = TeamScoreUiModel(MlbTeams.get(116), "3"),
-                    status = "Final",
+                    status = "Live",
+
+
                 ),
                 tenDayStretch = TenDayStretchUiModel(
                     games = listOf(
@@ -177,6 +174,7 @@ private fun HomeScreenPreview() {
                             id = 1,
                             shortDate = "Mar 26",
                             year = "2026",
+                            date = "2026-03-26",
                             matchup = "Phillies @ Braves",
                             ballpark = "Truist Park",
                             score = "5 - 3",
@@ -187,6 +185,7 @@ private fun HomeScreenPreview() {
                             id = 2,
                             shortDate = "Mar 27",
                             year = "2026",
+                            date = "2026-03-27",
                             matchup = "Phillies @ Mets",
                             ballpark = "Citi Field",
                             score = "—",
@@ -200,9 +199,42 @@ private fun HomeScreenPreview() {
                     DivisionStandingUiModel(1, 143, "PHI", "Phillies", 10, 5, "-"),
                     DivisionStandingUiModel(2, 144, "ATL", "Braves", 9, 6, "1.0"),
                     DivisionStandingUiModel(3, 121, "NYM", "Mets", 8, 7, "2.0")
-                )
+                ),
+                teamMvps = TeamMVPsUiModel(
+                    categories = listOf(
+                        MvpCategoryUiModel(
+                            label = "AVG",
+                            value = ".311",
+                            playerId = 134,
+                            playerName = "Tea Turner"
+                        ),
+                        MvpCategoryUiModel(
+                            label = "HR",
+                            value = "32",
+                            playerId = 143,
+                            playerName = "Kyle Schwarber"
+                        ),
+                        MvpCategoryUiModel(
+                            label = "RBI",
+                            value = "98",
+                            playerId = 143,
+                            playerName = "Kyle Schwarber"
+                        ),
+                        MvpCategoryUiModel(
+                            label = "ERA",
+                            value = "2.84",
+                            playerId = 143,
+                            playerName = "Christopher Sanchez"
+                        ),
+                        MvpCategoryUiModel(
+                            label = "SO",
+                            value = "187",
+                            playerId = 143,
+                            playerName = "Zack Wheeler"
+                        )
+                    )
             )
-        )
+            ))
     }
 }
 

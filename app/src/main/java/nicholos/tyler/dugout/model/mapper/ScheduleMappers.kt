@@ -4,9 +4,12 @@ import nicholos.tyler.dugout.data.api.dto.GameDto
 import nicholos.tyler.dugout.data.api.dto.GameStatusDto
 import nicholos.tyler.dugout.data.api.dto.GameTeamsDto
 import nicholos.tyler.dugout.data.api.dto.LeagueRecordDto
+import nicholos.tyler.dugout.data.api.dto.LinescoreDto
 import nicholos.tyler.dugout.data.api.dto.TeamDto
 import nicholos.tyler.dugout.data.api.dto.TeamSideDto
 import nicholos.tyler.dugout.data.api.dto.VenueDto
+import nicholos.tyler.dugout.data.api.dto.ProbablePitcherDto
+import nicholos.tyler.dugout.model.domain.ProbablePitcher
 import nicholos.tyler.dugout.model.domain.Game
 import nicholos.tyler.dugout.model.domain.GameStatus
 import nicholos.tyler.dugout.model.domain.GameTeams
@@ -25,7 +28,24 @@ fun GameDto.toDomain(): Game {
         teams = teams?.toDomain(),
         venue = venue?.toDomain(),
         scheduledInnings = scheduledInnings,
-        seriesDescription = seriesDescription
+        seriesDescription = seriesDescription,
+        linescore = linescore?.toDomain()
+    )
+}
+
+fun LinescoreDto.toDomain(): nicholos.tyler.dugout.model.domain.Linescore {
+    return nicholos.tyler.dugout.model.domain.Linescore(
+        currentInning = currentInning,
+        inningState = inningState,
+        inningHalf = inningHalf,
+        isTopInning = isTopInning,
+        scheduledInnings = scheduledInnings,
+        balls = balls,
+        strikes = strikes,
+        outs = outs,
+        onFirst = offense?.first != null,
+        onSecond = offense?.second != null,
+        onThird = offense?.third != null
     )
 }
 
@@ -48,7 +68,15 @@ fun TeamSideDto.toDomain(): TeamSide {
     return TeamSide(
         team = team?.toDomain(),
         leagueRecord = leagueRecord?.toDomain(),
-        score = score
+        score = score,
+        probablePitcher = probablePitcher?.toDomain()
+    )
+}
+
+fun ProbablePitcherDto.toDomain(): ProbablePitcher {
+    return ProbablePitcher(
+        id = id,
+        fullName = fullName
     )
 }
 

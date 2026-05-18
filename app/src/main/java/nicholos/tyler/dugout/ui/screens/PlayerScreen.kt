@@ -1,6 +1,7 @@
 package nicholos.tyler.dugout.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -39,6 +41,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
@@ -48,9 +51,11 @@ import nicholos.tyler.dugout.model.domain.PlayerStatCategory
 import nicholos.tyler.dugout.model.domain.PlayerStatItem
 import nicholos.tyler.dugout.model.ui.PlayerCategoryStatsUiModel
 import nicholos.tyler.dugout.model.ui.PlayerProfileUiModel
+import nicholos.tyler.dugout.model.ui.PlayerQuickStatUiModel
 import nicholos.tyler.dugout.model.ui.PlayerSplitStatsUiModel
 import nicholos.tyler.dugout.model.ui.PlayerStatRange
 import nicholos.tyler.dugout.model.ui.PlayerUiState
+import nicholos.tyler.dugout.ui.theme.DugoutTheme
 import nicholos.tyler.dugout.viewmodel.PlayerViewModel
 
 @Composable
@@ -96,7 +101,7 @@ fun PlayerScreenContent(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = uiState.error.orEmpty(),
+                    text = uiState.error,
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.error
                 )
@@ -284,16 +289,17 @@ private fun PlayerHeroCard(
             }
         }
 
-        FlowRow(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             player.bats?.let { MetaChip(text = "Bats $it") }
             player.throwsHand?.let { MetaChip(text = "Throws $it") }
             player.age?.let { MetaChip(text = "Age $it") }
             player.height?.let { MetaChip(text = it) }
-            player.weight?.let { MetaChip(text = "${it} lb") }
+            player.weight?.let { MetaChip(text = "$it lb") }
         }
     }
 }
@@ -437,11 +443,11 @@ private fun PlayerStatsCard(
             modifier = Modifier.padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text(
-                text = "${category.category.label()} • ${range.label()}",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.SemiBold
-            )
+//            Text(
+//                text = "${category.category.label()} • ${range.label()}",
+//                style = MaterialTheme.typography.titleLarge,
+//                fontWeight = FontWeight.SemiBold
+//            )
 
             if (primary.isEmpty() && secondary.isEmpty()) {
                 Text(
@@ -561,3 +567,96 @@ private fun PlayerStatRange.label(): String {
         PlayerStatRange.CAREER -> "Career"
     }
 }
+
+@Preview(showBackground = true)
+@Composable
+fun PlayerScreenContentPreview() {
+    DugoutTheme {
+        PlayerScreenContent(
+            uiState = samplePlayerUiState
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun PlayerScreenContentLoadingPreview() {
+    DugoutTheme {
+        PlayerScreenContent(
+            uiState = PlayerUiState(isLoading = true)
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun PlayerScreenContentErrorPreview() {
+    DugoutTheme {
+        PlayerScreenContent(
+            uiState = PlayerUiState(error = "Unable to load player details")
+        )
+    }
+}
+
+private val samplePlayer = PlayerProfileUiModel(
+    id = 660271,
+    fullName = "Shohei Ohtani",
+    jerseyNumber = "17",
+    position = "DH",
+    teamName = "Los Angeles Dodgers",
+    age = 30,
+    height = "6' 4\"",
+    weight = 210,
+    bats = "L",
+    throwsHand = "R",
+    quickStats = listOf(
+        PlayerQuickStatUiModel("AVG", ".310"),
+        PlayerQuickStatUiModel("HR", "54"),
+        PlayerQuickStatUiModel("RBI", "130"),
+        PlayerQuickStatUiModel("SB", "59")
+    ),
+    categories = listOf(
+        PlayerCategoryStatsUiModel(
+            category = PlayerStatCategory.BATTING,
+            seasonPrimary = listOf(
+                PlayerStatItem("AVG", ".310"),
+                PlayerStatItem("HR", "54"),
+                PlayerStatItem("RBI", "130"),
+                PlayerStatItem("OPS", "1.036")
+            ),
+            seasonSecondary = listOf(
+                PlayerStatItem("H", "197"),
+                PlayerStatItem("R", "134"),
+                PlayerStatItem("SB", "59")
+            ),
+            careerPrimary = listOf(
+                PlayerStatItem("AVG", ".282"),
+                PlayerStatItem("HR", "225"),
+                PlayerStatItem("RBI", "567"),
+                PlayerStatItem("OPS", ".945")
+            ),
+            careerSecondary = listOf(
+                PlayerStatItem("H", "878"),
+                PlayerStatItem("R", "562"),
+                PlayerStatItem("SB", "145")
+            )
+        )
+    ),
+    splits = listOf(
+        PlayerSplitStatsUiModel(
+            title = "Last 7 Games",
+            stats = listOf(
+                PlayerStatItem("AVG", ".350"),
+                PlayerStatItem("HR", "2"),
+                PlayerStatItem("RBI", "6")
+            )
+        )
+    )
+)
+
+private val samplePlayerUiState = PlayerUiState(
+    player = samplePlayer,
+    isLoading = false,
+    selectedCategory = PlayerStatCategory.BATTING,
+    selectedRange = PlayerStatRange.SEASON
+)

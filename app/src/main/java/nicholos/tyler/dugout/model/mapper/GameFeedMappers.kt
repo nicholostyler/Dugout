@@ -7,6 +7,8 @@ import nicholos.tyler.dugout.model.domain.GameDetails
 import nicholos.tyler.dugout.model.domain.InningScore
 import nicholos.tyler.dugout.model.domain.PlayItem
 
+import nicholos.tyler.dugout.model.domain.PitchItem
+
 fun GameFeedResponseDto.toGameDetails(gamePk: Int): GameDetails {
     val gameData = gameData
     val liveData = liveData
@@ -61,6 +63,9 @@ fun GameFeedResponseDto.toGameDetails(gamePk: Int): GameDetails {
         currentPitcher = lastPlay?.matchup?.pitcher?.fullName,
         officialDate = gameData?.datetime?.officialDate,
         startDateTime = gameData?.datetime?.dateTime,
+        onFirst = linescore?.offense?.first != null,
+        onSecond = linescore?.offense?.second != null,
+        onThird = linescore?.offense?.third != null,
         plays = playList,
         innings = inningScores
     )
@@ -75,5 +80,21 @@ fun PlayDto.toPlayItem(): PlayItem {
         batterName = matchup?.batter?.fullName,
         pitcherName = matchup?.pitcher?.fullName,
         batterId = matchup?.batter?.id,
+        pitches = playEvents.filter { it.pitchData != null || it.details?.call != null }
+            .map {
+                val coords = it.pitchData?.coordinates ?: it.coordinates
+                val px = coords?.pX ?: coords?.pxLower ?: coords?.plateX
+                val pz = coords?.pZ ?: coords?.pzLower ?: coords?.plateZ
+
+                PitchItem(
+                    result = it.details?.description ?: it.details?.call?.description,
+                    velocity = it.pitchData?.startSpeed,
+                    px = px,
+                    pz = pz,
+                    pitchType = it.details?.type?.description,
+                    balls = it.count?.balls,
+                    strikes = it.count?.strikes
+                )
+            }
     )
 }
