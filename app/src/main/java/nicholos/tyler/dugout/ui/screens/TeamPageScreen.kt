@@ -44,7 +44,8 @@ fun TeamPageScreen(
     onStretchGameClick: (Int) -> Unit = {},
     onSeasonScheduleClick: () -> Unit = {},
     onTeamRosterClick: () -> Unit = {},
-    onViewLeagueClick: () -> Unit = {}
+    onViewLeagueClick: () -> Unit = {},
+    onPlayerClick: (Int) -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
@@ -59,7 +60,8 @@ fun TeamPageScreen(
         onStretchGameClick = onStretchGameClick,
         onSeasonScheduleClick = onSeasonScheduleClick,
         onTeamRosterClick = onTeamRosterClick,
-        onViewLeagueClick = onViewLeagueClick
+        onViewLeagueClick = onViewLeagueClick,
+        onPlayerClick = onPlayerClick
     )
 }
 
@@ -71,7 +73,8 @@ fun TeamPageScreenContent(
     onStretchGameClick: (Int) -> Unit = {},
     onSeasonScheduleClick: () -> Unit = {},
     onTeamRosterClick: () -> Unit = {},
-    onViewLeagueClick: () -> Unit = {}
+    onViewLeagueClick: () -> Unit = {},
+    onPlayerClick: (Int) -> Unit = {}
 ) {
     when {
         uiState.isLoading -> {
@@ -141,7 +144,8 @@ fun TeamPageScreenContent(
                     item {
                         TeamMVPSection(
                             model = mvps,
-                            onViewRosterClick = onTeamRosterClick
+                            onViewRosterClick = onTeamRosterClick,
+                            onPlayerClick = onPlayerClick
                         )
                     }
                 }

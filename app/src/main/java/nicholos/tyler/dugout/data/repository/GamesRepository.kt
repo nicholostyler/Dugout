@@ -10,6 +10,8 @@ import nicholos.tyler.dugout.model.domain.Game
 import nicholos.tyler.dugout.model.domain.GameDetails
 import nicholos.tyler.dugout.model.domain.PlayerDetails
 import nicholos.tyler.dugout.model.domain.PlayerQuickStat
+import nicholos.tyler.dugout.model.domain.PlayerSplitSections
+import nicholos.tyler.dugout.model.domain.PlayerSplitStatLine
 import nicholos.tyler.dugout.model.domain.PlayerStatCategory
 import nicholos.tyler.dugout.model.domain.PlayerStatItem
 import nicholos.tyler.dugout.model.domain.PlayerStatLine
@@ -23,6 +25,7 @@ import nicholos.tyler.dugout.model.mapper.toTeamRoster
 import java.time.LocalDate
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 class GamesRepository(
     private val api: MlbApiService
@@ -127,7 +130,10 @@ class GamesRepository(
         playerId: Int,
         season: Int
     ): PlayerDetails {
-        val basePlayer = api.getPlayer(playerId).people.first()
+        val basePlayer = api.getPlayerWithHydratedStats(
+            personId = playerId,
+            hydrate = "currentTeam,primaryPosition"
+        ).people.first()
 
         val isPitcher = basePlayer.primaryPosition?.abbreviation?.uppercase() == "P"
         val primaryCategory = if (isPitcher) {
@@ -158,17 +164,10 @@ class GamesRepository(
             hydrate = "stats(group=[fielding],type=[careerRegularSeason])"
         ).people.first()
 
-        val splitStatsResponse = api.getPlayerStats(
-            stats = "season",
+        val opponentGameLogResponse = api.getPersonStats(
+            personId = playerId,
+            stats = "gameLog",
             group = primaryGroup,
-            personId = playerId,
-            season = season
-        )
-
-        val fieldingSplitStatsResponse = api.getPlayerStats(
-            stats = "season",
-            group = "fielding",
-            personId = playerId,
             season = season
         )
 
@@ -209,19 +208,23 @@ class GamesRepository(
             fieldingCareerStats = fieldingCareerStats
         )
 
-        val splitSections = buildSplitSections(
-            primaryCategory = primaryCategory,
-            primaryResponse = splitStatsResponse,
-            fieldingResponse = fieldingSplitStatsResponse,
-            requestedSeason = season
+        val splitSections = PlayerSplitSections(
+            season = buildOpponentSplitSections(
+                primaryCategory = primaryCategory,
+                response = opponentGameLogResponse,
+                requestedSeason = season
+            ),
+            career = emptyList()
         )
 
         return PlayerDetails(
             id = basePlayer.id,
             fullName = basePlayer.fullName,
             jerseyNumber = basePlayer.primaryNumber,
-            position = basePlayer.primaryPosition?.abbreviation ?: "--",
-            teamName = basePlayer.currentTeam?.name,
+            position = basePlayer.primaryPosition?.abbreviation 
+                ?: basePlayer.primaryPosition?.name 
+                ?: "--",
+            teamName = basePlayer.currentTeam?.fullName ?: basePlayer.currentTeam?.name,
             age = basePlayer.currentAge,
             height = basePlayer.height,
             weight = basePlayer.weight,
@@ -229,7 +232,8 @@ class GamesRepository(
             throwsHand = basePlayer.pitchHand?.code,
             quickStats = quickStats,
             statSections = statSections,
-            splitSections = splitSections
+            splitSections = splitSections,
+            teamId = basePlayer.currentTeam?.id
         )
     }
 }
@@ -243,12 +247,20 @@ private fun PlayerApiDto.findHydratedStatLine(
 
     return stats.firstOrNull { group ->
         group.group?.displayName.equals(requestedGroup, ignoreCase = true) &&
-                group.type?.displayName.equals(requestedType, ignoreCase = true)
+                group.type?.displayName.matchesStatType(requestedType)
     }?.splits
         ?.firstOrNull { split ->
             seasonString == null || split.season == seasonString
         }
         ?.stat
+}
+
+private fun String?.matchesStatType(requestedType: String): Boolean {
+    val actual = this?.lowercase(Locale.US) ?: return false
+    val requested = requestedType.lowercase(Locale.US)
+
+    return actual == requested ||
+            requested == "careerregularseason" && actual == "career"
 }
 
 private fun buildQuickStats(
@@ -328,47 +340,116 @@ private fun buildStatSections(
     return sections
 }
 
-private fun buildSplitSections(
+private fun buildOpponentSplitSections(
     primaryCategory: PlayerStatCategory,
-    primaryResponse: StatsResponseDto,
-    fieldingResponse: StatsResponseDto,
+    response: StatsResponseDto,
     requestedSeason: Int
 ): List<PlayerSplitStatLine> {
-    val sections = mutableListOf<PlayerSplitStatLine>()
+    val seasonString = requestedSeason.toString()
 
-    sections += primaryResponse.stats
+    return response.stats
         .flatMap { it.splits }
-        .filter { it.season == requestedSeason.toString() && it.stat != null }
-        .map { split ->
+        .filter { split ->
+            split.stat != null &&
+                    split.opponent?.id != null &&
+                    split.opponent.name != null &&
+                    split.season == seasonString
+        }
+        .groupBy { split -> split.opponent!!.id to split.opponent.name!! }
+        .map { (opponent, splits) ->
+            val aggregate = splits.mapNotNull { it.stat }.toStatAggregate()
             PlayerSplitStatLine(
-                title = split.buildTitle(),
+                title = "vs ${opponent.second}",
+                subtitle = "${aggregate.games} G",
+                teamId = opponent.first,
                 stats = when (primaryCategory) {
-                    PlayerStatCategory.PITCHING -> split.stat!!.toPitchingSplitItems()
-                    PlayerStatCategory.BATTING -> split.stat!!.toBattingSplitItems()
+                    PlayerStatCategory.PITCHING -> aggregate.toPitchingOpponentSplitItems()
+                    PlayerStatCategory.BATTING -> aggregate.toBattingOpponentSplitItems()
                     PlayerStatCategory.FIELDING -> emptyList()
                 }
             )
         }
-
-    sections += fieldingResponse.stats
-        .flatMap { it.splits }
-        .filter { it.season == requestedSeason.toString() && it.stat != null }
-        .map { split ->
-            PlayerSplitStatLine(
-                title = "${split.buildTitle()} • Fielding",
-                stats = split.stat!!.toFieldingSplitItems()
-            )
-        }
-
-    return sections
+        .sortedWith(
+            compareByDescending<PlayerSplitStatLine> { split ->
+                split.stats.firstOrNull { it.label == "G" }?.value?.toIntOrNull() ?: 0
+            }.thenBy { it.title }
+        )
 }
 
-private fun StatsSplitDto.buildTitle(): String {
-    return team?.name
-        ?: league?.name
-        ?: sport?.name
-        ?: season
-        ?: "Split"
+private fun List<PlayerStatValuesDto>.toStatAggregate(): PlayerStatAggregate {
+    return fold(PlayerStatAggregate()) { aggregate, stat ->
+        aggregate.copy(
+            games = aggregate.games + (stat.gamesPitched ?: stat.gamesPlayed ?: stat.games ?: 1),
+            outs = aggregate.outs + (stat.outs ?: stat.inningsPitched.toOuts()),
+            earnedRuns = aggregate.earnedRuns + stat.earnedRuns.orZero(),
+            hits = aggregate.hits + stat.hits.orZero(),
+            walks = aggregate.walks + stat.baseOnBalls.orZero(),
+            strikeOuts = aggregate.strikeOuts + stat.strikeOuts.orZero(),
+            wins = aggregate.wins + stat.wins.orZero(),
+            losses = aggregate.losses + stat.losses.orZero(),
+            saves = aggregate.saves + stat.saves.orZero(),
+            atBats = aggregate.atBats + stat.atBats.orZero(),
+            totalBases = aggregate.totalBases + stat.totalBases.orZero(),
+            hitByPitch = aggregate.hitByPitch + stat.hitByPitch.orZero(),
+            sacFlies = aggregate.sacFlies + stat.sacFlies.orZero(),
+            homeRuns = aggregate.homeRuns + stat.homeRuns.orZero(),
+            rbi = aggregate.rbi + stat.rbi.orZero()
+        )
+    }
+}
+
+private data class PlayerStatAggregate(
+    val games: Int = 0,
+    val outs: Int = 0,
+    val earnedRuns: Int = 0,
+    val hits: Int = 0,
+    val walks: Int = 0,
+    val strikeOuts: Int = 0,
+    val wins: Int = 0,
+    val losses: Int = 0,
+    val saves: Int = 0,
+    val atBats: Int = 0,
+    val totalBases: Int = 0,
+    val hitByPitch: Int = 0,
+    val sacFlies: Int = 0,
+    val homeRuns: Int = 0,
+    val rbi: Int = 0
+)
+
+private fun PlayerStatAggregate.toPitchingOpponentSplitItems(): List<PlayerStatItem> {
+    return listOf(
+        PlayerStatItem("G", games.display()),
+        PlayerStatItem("IP", outs.toInningsPitched()),
+        PlayerStatItem("ERA", formatRate(numerator = earnedRuns * 27.0, denominator = outs.toDouble())),
+        PlayerStatItem("WHIP", formatRate(numerator = (hits + walks) * 3.0, denominator = outs.toDouble())),
+        PlayerStatItem("SO", strikeOuts.display()),
+        PlayerStatItem("BB", walks.display()),
+        PlayerStatItem("W", wins.display()),
+        PlayerStatItem("L", losses.display()),
+        PlayerStatItem("SV", saves.display())
+    )
+}
+
+private fun PlayerStatAggregate.toBattingOpponentSplitItems(): List<PlayerStatItem> {
+    val obpDenominator = atBats + walks + hitByPitch + sacFlies
+    val obp = formatAverage(hits + walks + hitByPitch, obpDenominator)
+    val slg = formatAverage(totalBases, atBats)
+    val ops = if (obpDenominator == 0 || atBats == 0) "--" else {
+        val obpValue = (hits + walks + hitByPitch).toDouble() / obpDenominator
+        val slgValue = totalBases.toDouble() / atBats
+        formatDecimal(obpValue + slgValue, digits = 3, leadingZero = false)
+    }
+
+    return listOf(
+        PlayerStatItem("G", games.display()),
+        PlayerStatItem("AVG", formatAverage(hits, atBats)),
+        PlayerStatItem("OPS", ops),
+        PlayerStatItem("H", hits.display()),
+        PlayerStatItem("HR", homeRuns.display()),
+        PlayerStatItem("RBI", rbi.display()),
+        PlayerStatItem("BB", walks.display()),
+        PlayerStatItem("SO", strikeOuts.display())
+    )
 }
 
 private fun PlayerStatValuesDto.toBattingLine(): PlayerStatLine {
@@ -466,9 +547,39 @@ private fun PlayerStatValuesDto.toFieldingSplitItems(): List<PlayerStatItem> {
     )
 }
 
-data class PlayerSplitStatLine(
-    val title: String,
-    val stats: List<PlayerStatItem>
-)
+private fun Int?.orZero(): Int = this ?: 0
+
+private fun String?.toOuts(): Int {
+    if (this == null) return 0
+    val parts = split(".")
+    val innings = parts.getOrNull(0)?.toIntOrNull() ?: 0
+    val partialOuts = parts.getOrNull(1)?.toIntOrNull()?.coerceIn(0, 2) ?: 0
+    return innings * 3 + partialOuts
+}
+
+private fun Int.toInningsPitched(): String {
+    val innings = this / 3
+    val remainingOuts = this % 3
+    return "$innings.$remainingOuts"
+}
+
+private fun formatRate(numerator: Double, denominator: Double): String {
+    if (denominator <= 0.0) return "--"
+    return formatDecimal(numerator / denominator, digits = 2, leadingZero = true)
+}
+
+private fun formatAverage(numerator: Int, denominator: Int): String {
+    if (denominator <= 0) return "--"
+    return formatDecimal(numerator.toDouble() / denominator, digits = 3, leadingZero = false)
+}
+
+private fun formatDecimal(value: Double, digits: Int, leadingZero: Boolean): String {
+    val formatted = String.format(Locale.US, "%.${digits}f", value)
+    return if (!leadingZero && formatted.startsWith("0")) {
+        formatted.drop(1)
+    } else {
+        formatted
+    }
+}
 
 private fun Any?.display(): String = this?.toString() ?: "--"

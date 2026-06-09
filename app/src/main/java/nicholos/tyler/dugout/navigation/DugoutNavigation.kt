@@ -27,6 +27,9 @@ data object ScheduleRoute : DugoutRoute
 data object ScoresRoute : DugoutRoute
 
 @Serializable
+data object SearchRoute : DugoutRoute
+
+@Serializable
 data class GameDetailRoute(
     val gamePk: Int
 ) : DugoutRoute
@@ -82,6 +85,12 @@ class DugoutNavigationState(
         backStack.add(root)
     }
 
+    fun navigateToSearch() {
+        if (backStack.lastOrNull() != SearchRoute) {
+            backStack.add(SearchRoute)
+        }
+    }
+
     fun navigateToTeamPage(teamId: Int) {
         backStack.add(TeamPageRoute(teamId))
     }
@@ -115,6 +124,7 @@ class DugoutNavigationState(
             HomeRoute -> "Home"
             ScheduleRoute -> "Schedule"
             ScoresRoute -> "Scores"
+            SearchRoute -> "Player Search"
             LeagueRoute -> "League"
             is GameDetailRoute -> "Game Detail"
             is TeamRosterRoute -> "Team Roster"

@@ -7,6 +7,7 @@ import nicholos.tyler.dugout.ui.components.TenDayStretchUiModel
 @Immutable
 data class HomeUiState(
     val isLoading: Boolean = false,
+    val isRefreshing: Boolean = false,
     val todaysGame: GameSnapshotCardUiModel? = null,
     val tenDayStretch: TenDayStretchUiModel? = null,
     val teamMvps: TeamMVPsUiModel? = null,

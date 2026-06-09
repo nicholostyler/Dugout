@@ -2,12 +2,16 @@ package nicholos.tyler.dugout.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import nicholos.tyler.dugout.data.repository.FirestoreGamesRepository
 import nicholos.tyler.dugout.data.repository.GamesRepository
 import nicholos.tyler.dugout.data.repository.LeagueRepository
+import nicholos.tyler.dugout.data.repository.PlayerSearchRepository
 
 class DugoutViewModelFactory(
     private val repository: GamesRepository,
-    private val leagueRepository: LeagueRepository
+    private val firestoreGamesRepository: FirestoreGamesRepository,
+    private val leagueRepository: LeagueRepository,
+    private val playerSearchRepository: PlayerSearchRepository
 ) : ViewModelProvider.Factory {
 
     @Suppress("UNCHECKED_CAST")
@@ -23,12 +27,15 @@ class DugoutViewModelFactory(
             modelClass.isAssignableFrom(PlayerViewModel::class.java) -> {
                 PlayerViewModel(repository) as T
             }
+            modelClass.isAssignableFrom(PlayerSearchViewModel::class.java) -> {
+                PlayerSearchViewModel(playerSearchRepository) as T
+            }
 
             modelClass.isAssignableFrom(HomeViewModel::class.java) -> {
                 HomeViewModel(repository, leagueRepository) as T
             }
             modelClass.isAssignableFrom(ScoresViewModel::class.java) -> {
-                ScoresViewModel(repository) as T
+                ScoresViewModel(repository, firestoreGamesRepository) as T
             }
 
             modelClass.isAssignableFrom(RosterViewModel::class.java) -> {

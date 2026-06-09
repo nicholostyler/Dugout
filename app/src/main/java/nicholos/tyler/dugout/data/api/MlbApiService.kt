@@ -72,6 +72,12 @@ interface MlbApiService {
         @Query("standingsTypes") standingsTypes: String = "regularSeason"
     ): StandingsResponseDto
 
+    @GET("api/v1/sports/{sportId}/players")
+    suspend fun getSportPlayers(
+        @Path("sportId") sportId: Int = 1,
+        @Query("season") season: Int
+    ): PlayerApiResponseDto
+
     @GET("api/v1/people/{personId}")
     suspend fun getPlayer(
         @Path("personId") personId: Int
@@ -89,6 +95,15 @@ interface MlbApiService {
         @Query("group") group: String,
         @Query("personId") personId: Int,
         @Query("season") season: Int? = null
+    ): StatsResponseDto
+
+    @GET("api/v1/people/{personId}/stats")
+    suspend fun getPersonStats(
+        @Path("personId") personId: Int,
+        @Query("stats") stats: String,
+        @Query("group") group: String,
+        @Query("season") season: Int? = null,
+        @Query("gameType") gameType: String = "R"
     ): StatsResponseDto
 
     @GET("api/v1/stats/leaders")

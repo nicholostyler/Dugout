@@ -33,8 +33,10 @@ class HomeViewModel(
         }
 
         viewModelScope.launch {
+            val refreshExistingContent = forceRefresh && hasContent()
             _uiState.value = _uiState.value.copy(
-                isLoading = true,
+                isLoading = !refreshExistingContent,
+                isRefreshing = refreshExistingContent,
                 error = null
             )
 
@@ -64,6 +66,7 @@ class HomeViewModel(
 
                 _uiState.value = HomeUiState(
                     isLoading = false,
+                    isRefreshing = false,
                     todaysGame = todaysSnapshotCard,
                     tenDayStretch = stretchGames.toTenDayStretchUiModel(teamId),
                     teamMvps = teamMvps.toUiModel(),
@@ -76,10 +79,15 @@ class HomeViewModel(
             } catch (t: Throwable) {
                 _uiState.value = HomeUiState(
                     isLoading = false,
+                    isRefreshing = false,
                     error = t.message ?: "Failed to load home"
                 )
             }
         }
+    }
+
+    fun refresh(teamId: Int) {
+        loadHome(teamId, forceRefresh = true)
     }
 
     fun refreshIfNeeded(teamId: Int) {

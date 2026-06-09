@@ -23,40 +23,33 @@ import androidx.compose.ui.unit.dp
 import nicholos.tyler.dugout.model.ui.MvpCategoryUiModel
 import nicholos.tyler.dugout.model.ui.TeamMVPsUiModel
 import nicholos.tyler.dugout.ui.theme.DugoutTheme
+import nicholos.tyler.dugout.ui.components.TitleActionRow
 
 @Composable
 fun TeamMVPSection(
     model: TeamMVPsUiModel,
     onViewRosterClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onPlayerClick: (Int) -> Unit = {}
 ) {
     Column(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(
-                text = "Team MVPs",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-
-            Text(
-                text = "Team Roster",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.clickable(onClick = onViewRosterClick)
-            )
-        }
+        TitleActionRow(
+            title = "Team MVPs",
+            actionText = "Team Roster",
+            onActionClick = onViewRosterClick
+        )
 
         LazyRow(
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             items(model.categories) { category ->
-                MVPStatCard(model = category)
+                MVPStatCard(
+                    model = category,
+                    onClick = { onPlayerClick(category.playerId) }
+                )
             }
         }
     }
@@ -104,12 +97,14 @@ private fun TeamMVPSectionPreview() {
 @Composable
 private fun MVPStatCard(
     model: MvpCategoryUiModel,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit = {}
 ) {
     Card(
         modifier = modifier
             .width(148.dp)
-            .height(120.dp),
+            .height(120.dp)
+            .clickable(onClick = onClick),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
         ),

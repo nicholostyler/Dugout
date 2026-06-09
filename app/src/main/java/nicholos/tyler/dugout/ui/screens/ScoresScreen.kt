@@ -30,14 +30,16 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.ListItemShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.ToggleButton
-import androidx.compose.material3.ToggleButtonDefaults
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -49,9 +51,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.role
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -70,6 +69,7 @@ import nicholos.tyler.dugout.model.ui.ScoresUiState
 import nicholos.tyler.dugout.model.ui.TeamScoreUiModel
 import nicholos.tyler.dugout.ui.components.DiamondRunners
 import nicholos.tyler.dugout.ui.components.GameSnapshotCard
+import nicholos.tyler.dugout.ui.components.TitleActionRow
 import nicholos.tyler.dugout.ui.theme.DugoutTheme
 import nicholos.tyler.dugout.viewmodel.ScoresViewModel
 
@@ -84,34 +84,53 @@ fun ScoresScreen(
     ScoresScreenContent(
         uiState = uiState,
         onDateSelected = viewModel::onDateSelected,
+        onRefresh = viewModel::refresh,
         onGameClick = onGameClick,
         modifier = modifier
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun ScoresScreenContent(
     uiState: ScoresUiState,
     onDateSelected: (LocalDate) -> Unit,
+    onRefresh: () -> Unit,
     onGameClick: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Column(modifier = modifier.fillMaxSize()) {
-        DateSelector(
-            selectedDate = uiState.selectedDate,
-            onDateSelected = onDateSelected,
-            modifier = Modifier.padding(vertical = 8.dp)
-        )
+    val pullRefreshState = rememberPullToRefreshState()
 
-        when {
-            uiState.isLoading -> LoadingState(Modifier.weight(1f))
-            uiState.error != null -> ErrorState(message = uiState.error, modifier = Modifier.weight(1f))
-            uiState.games.isEmpty() -> EmptyState(Modifier.weight(1f))
-            else -> ScoresList(
-                games = uiState.games,
-                onGameClick = onGameClick,
-                modifier = Modifier.weight(1f)
+    PullToRefreshBox(
+        modifier = modifier.fillMaxSize(),
+        state = pullRefreshState,
+        isRefreshing = uiState.isRefreshing,
+        onRefresh = onRefresh,
+        indicator = {
+            PullToRefreshDefaults.LoadingIndicator(
+                state = pullRefreshState,
+                isRefreshing = uiState.isRefreshing,
+                modifier = Modifier.align(Alignment.TopCenter)
             )
+        }
+    ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            DateSelector(
+                selectedDate = uiState.selectedDate,
+                onDateSelected = onDateSelected,
+                modifier = Modifier.padding(vertical = 8.dp)
+            )
+
+            when {
+                uiState.isLoading -> LoadingState(Modifier.weight(1f))
+                uiState.error != null -> ErrorState(message = uiState.error, modifier = Modifier.weight(1f))
+                uiState.games.isEmpty() -> EmptyState(Modifier.weight(1f))
+                else -> ScoresList(
+                    games = uiState.games,
+                    onGameClick = onGameClick,
+                    modifier = Modifier.weight(1f)
+                )
+            }
         }
     }
 }
@@ -209,20 +228,16 @@ private fun DateSelector(
             )
         }
 
-        Surface(
+        IconButton(
             onClick = { showDatePicker = true },
-            shape = RoundedCornerShape(16.dp),
-            color = MaterialTheme.colorScheme.surfaceContainer,
-            modifier = Modifier.size(56.dp)
+            modifier = Modifier.size(DateSelectorHeight)
         ) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(
-                    imageVector = Icons.Default.CalendarMonth,
-                    contentDescription = "Select Date",
-                    modifier = Modifier.size(24.dp),
-                    tint = MaterialTheme.colorScheme.onSurface
-                )
-            }
+            Icon(
+                imageVector = Icons.Default.CalendarMonth,
+                contentDescription = "Select Date",
+                modifier = Modifier.size(24.dp),
+                tint = MaterialTheme.colorScheme.onSurface
+            )
         }
     }
 }
@@ -239,65 +254,25 @@ private fun DateButtonGroup(
     modifier: Modifier = Modifier
 ) {
     ButtonGroup(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .height(DateSelectorHeight),
         expandedRatio = 0f,
         horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
         overflowIndicator = {}
     ) {
         dates.forEachIndexed { index, date ->
-            val isSelected = date == selectedDate
-            
-            customItem(
-                buttonGroupContent = {
-                    val interactionSource = remember { MutableInteractionSource() }
-                    ToggleButton(
-                        checked = isSelected,
-                        onCheckedChange = {
-                            if (!isSelected) onDateSelected(date)
-                        },
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(48.dp)
-                            .animateWidth(interactionSource)
-                            .semantics { role = Role.RadioButton },
-                        interactionSource = interactionSource,
-                        shapes = when (index) {
-                            0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
-                            dates.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
-                            else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
-                        },
-                        colors = ToggleButtonDefaults.toggleButtonColors(
-                            checkedContainerColor = MaterialTheme.colorScheme.primary,
-                            checkedContentColor = MaterialTheme.colorScheme.onPrimary,
-                            containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                            contentColor = MaterialTheme.colorScheme.onSurface
-                        ),
-                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center
-                        ) {
-                            Text(
-                                text = date.format(monthDayFormatter),
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Medium,
-                                maxLines = 1
-                            )
-                            Text(
-                                text = date.format(dayOfWeekFormatter),
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold,
-                                maxLines = 1
-                            )
-                        }
-                    }
-                },
-                menuContent = { }
+            toggleableItem(
+                checked = date == selectedDate,
+                onCheckedChange = { if (it) onDateSelected(date) },
+                label = date.format(monthDayFormatter) + "\n" + date.format(dayOfWeekFormatter),
+                weight = 1f
             )
         }
     }
 }
+
+private val DateSelectorHeight = 64.dp
 
 @Composable
 private fun ScoresList(
@@ -316,9 +291,9 @@ private fun ScoresList(
     ) {
         if (liveGames.isNotEmpty()) {
             item {
-                SectionHeader(
+                TitleActionRow(
                     title = "Live",
-                    count = liveGames.size,
+                    actionText = liveGames.size.toString(),
                     modifier = Modifier.padding(top = 4.dp, bottom = 12.dp)
                 )
             }
@@ -343,9 +318,9 @@ private fun ScoresList(
 
         if (finalGames.isNotEmpty()) {
             item {
-                SectionHeader(
+                TitleActionRow(
                     title = "Final",
-                    count = finalGames.size,
+                    actionText = finalGames.size.toString(),
                     modifier = Modifier.padding(
                         top = if (liveGames.isEmpty()) 4.dp else 18.dp,
                         bottom = 12.dp
@@ -364,9 +339,9 @@ private fun ScoresList(
 
         if (upcomingGames.isNotEmpty()) {
             item {
-                SectionHeader(
+                TitleActionRow(
                     title = "Upcoming",
-                    count = upcomingGames.size,
+                    actionText = upcomingGames.size.toString(),
                     modifier = Modifier.padding(top = 18.dp, bottom = 12.dp)
                 )
             }
@@ -382,57 +357,6 @@ private fun ScoresList(
     }
 }
 
-@Composable
-fun SectionHeader(
-    title: String,
-    count: Int = 0,
-    modifier: Modifier = Modifier,
-    action: @Composable (() -> Unit)? = null
-) {
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        if (title.equals("Live", ignoreCase = true)) {
-            Box(
-                modifier = Modifier
-                    .size(8.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-        }
-
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-
-        if (count > 0) {
-            Spacer(modifier = Modifier.width(8.dp))
-
-            Surface(
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.surfaceContainerHighest
-            ) {
-                Text(
-                    text = count.toString(),
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        }
-
-        if (action != null) {
-            Spacer(modifier = Modifier.weight(1f))
-            action()
-        }
-    }
-}
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -1029,6 +953,7 @@ private fun ScoresScreenPreview() {
                     )
             ),
             onDateSelected = {},
+            onRefresh = {},
             onGameClick = {}
         )
     }

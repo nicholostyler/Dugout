@@ -1,6 +1,8 @@
 package nicholos.tyler.dugout.ui.screens
 
 import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -12,51 +14,74 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.IntrinsicSize
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ChevronLeft
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.ButtonGroup
+import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.ToggleButton
-import androidx.compose.material3.ToggleButtonDefaults
-import androidx.compose.material3.ButtonGroupDefaults
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
+import coil3.request.crossfade
+import coil3.svg.SvgDecoder
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import nicholos.tyler.dugout.model.domain.GameOutcome
+import nicholos.tyler.dugout.model.domain.MlbTeams
 import nicholos.tyler.dugout.model.ui.GameCardUiModel
 import nicholos.tyler.dugout.ui.components.GameCard
 import nicholos.tyler.dugout.ui.theme.DugoutTheme
 import nicholos.tyler.dugout.viewmodel.ScheduleView
 import nicholos.tyler.dugout.viewmodel.TeamScheduleUiState
 import nicholos.tyler.dugout.viewmodel.TeamScheduleViewModel
+import java.time.LocalDate
+import java.time.OffsetDateTime
+import java.time.YearMonth
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
+import java.util.Locale
 
 private data class ScheduleSectionUiModel(
     val title: String,
@@ -79,29 +104,27 @@ fun TeamScheduleScreen(
 
     TeamScheduleContent(
         uiState = uiState.value,
+        teamId = teamId,
         modifier = modifier,
         onGameClick = { gamePk ->
             viewModel.selectGame(gamePk)
             onGameClick(gamePk)
         },
-        onViewSelected = { viewModel.selectView(it) }
+        onViewSelected = { view ->
+            viewModel.selectView(view)
+        }
     )
 }
 
 @Composable
 fun TeamScheduleContent(
     uiState: TeamScheduleUiState,
+    teamId: Int,
     modifier: Modifier = Modifier,
     onGameClick: (Int) -> Unit = {},
     onViewSelected: (ScheduleView) -> Unit = {}
 ) {
     Column(modifier = modifier.fillMaxSize()) {
-        ScheduleViewSelector(
-            selectedView = uiState.selectedView,
-            onViewSelected = onViewSelected,
-            modifier = Modifier.fillMaxWidth()
-        )
-
         when {
             uiState.isLoading -> {
                 Box(
@@ -145,6 +168,11 @@ fun TeamScheduleContent(
             }
 
             else -> {
+                ScheduleListTypeSelector(
+                    selectedView = uiState.selectedView,
+                    onViewSelected = onViewSelected
+                )
+
                 Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
                     when (uiState.selectedView) {
                         ScheduleView.List -> {
@@ -157,6 +185,7 @@ fun TeamScheduleContent(
                         ScheduleView.Calendar -> {
                             ScheduleCalendarView(
                                 uiState = uiState,
+                                teamId = teamId,
                                 onGameClick = onGameClick
                             )
                         }
@@ -176,6 +205,38 @@ fun TeamScheduleContent(
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
+private fun ScheduleListTypeSelector(
+    selectedView: ScheduleView,
+    onViewSelected: (ScheduleView) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    if (selectedView == ScheduleView.Calendar) return
+
+    ButtonGroup(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .height(48.dp),
+        expandedRatio = 0f,
+        horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
+        overflowIndicator = {}
+    ) {
+        toggleableItem(
+            checked = selectedView == ScheduleView.List,
+            onCheckedChange = { if (it) onViewSelected(ScheduleView.List) },
+            label = "Individual",
+            weight = 1f
+        )
+        toggleableItem(
+            checked = selectedView == ScheduleView.Series,
+            onCheckedChange = { if (it) onViewSelected(ScheduleView.Series) },
+            label = "Series",
+            weight = 1f
+        )
+    }
+}
+
+@Composable
 private fun ScheduleListView(
     uiState: TeamScheduleUiState,
     onGameClick: (Int) -> Unit,
@@ -185,8 +246,8 @@ private fun ScheduleListView(
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap)
+        contentPadding = PaddingValues(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         sections.forEach { section ->
             item {
@@ -200,14 +261,17 @@ private fun ScheduleListView(
             }
 
             section.games.forEachIndexed { index, game ->
+                val shape = when {
+                    section.games.size == 1 -> RoundedCornerShape(12.dp)
+                    index == 0 -> RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp, bottomStart = 4.dp, bottomEnd = 4.dp)
+                    index == section.games.size - 1 -> RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomStart = 12.dp, bottomEnd = 12.dp)
+                    else -> RoundedCornerShape(4.dp)
+                }
                 item(key = game.id) {
                     GameCard(
                         game = game,
                         onClick = { onGameClick(game.id) },
-                        shape = ListItemDefaults.segmentedShapes(
-                            index = index,
-                            count = section.games.size
-                        ).shape
+                        shape = shape
                     )
                 }
             }
@@ -220,61 +284,572 @@ private fun ScheduleListView(
 }
 
 @Composable
-private fun ScheduleListItem(
-    game: GameCardUiModel,
-    isSelected: Boolean,
+private fun ScheduleCalendarView(
+    uiState: TeamScheduleUiState,
+    teamId: Int,
+    onGameClick: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val today = LocalDate.now()
+    val gamesByDate = remember(uiState.gameRows) {
+        uiState.gameRows
+            .mapNotNull { game -> game.localDate()?.let { date -> date to game } }
+            .groupBy(keySelector = { it.first }, valueTransform = { it.second })
+    }
+
+    val initialDate = remember(uiState.gameRows, uiState.selectedGamePk) {
+        uiState.gameRows
+            .firstOrNull { it.id == uiState.selectedGamePk }
+            ?.localDate()
+            ?: gamesByDate[today]?.firstOrNull()?.localDate()
+            ?: gamesByDate.keys.filter { !it.isBefore(today) }.minOrNull()
+            ?: gamesByDate.keys.minOrNull()
+            ?: today
+    }
+
+    val localDateSaver = Saver<LocalDate, String>(
+        save = { it.toString() },
+        restore = { LocalDate.parse(it) }
+    )
+    val yearMonthSaver = Saver<YearMonth, String>(
+        save = { it.toString() },
+        restore = { YearMonth.parse(it) }
+    )
+
+    var selectedDate by rememberSaveable(uiState.gameRows.size, stateSaver = localDateSaver) {
+        mutableStateOf(initialDate)
+    }
+    var visibleMonth by rememberSaveable(uiState.gameRows.size, stateSaver = yearMonthSaver) {
+        mutableStateOf(YearMonth.from(initialDate))
+    }
+
+    val scheduleColors = rememberScheduleColors()
+    val selectedGames = gamesByDate[selectedDate].orEmpty()
+    val selectedGame = selectedGames.firstOrNull()
+    LazyColumn(
+        modifier = modifier.fillMaxSize(),
+        contentPadding = PaddingValues(start = 16.dp, top = 6.dp, end = 16.dp, bottom = 20.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        item {
+            CalendarMonthHeader(
+                visibleMonth = visibleMonth,
+                subtitle = "12\u20137 \u00B7 2nd in NL East",
+                onPreviousMonth = {
+                    visibleMonth = visibleMonth.minusMonths(1)
+                },
+                onNextMonth = {
+                    visibleMonth = visibleMonth.plusMonths(1)
+                }
+            )
+        }
+
+        item {
+            WeekdayHeader()
+        }
+
+        item {
+            ScheduleMonthGrid(
+                visibleMonth = visibleMonth,
+                selectedDate = selectedDate,
+                today = today,
+                gamesByDate = gamesByDate,
+                scheduleColors = scheduleColors,
+                onDateSelected = { date ->
+                    selectedDate = date
+                    visibleMonth = YearMonth.from(date)
+                    gamesByDate[date]?.firstOrNull()?.let { onGameClick(it.id) }
+                }
+            )
+        }
+
+        item {
+            CalendarLegend(scheduleColors = scheduleColors)
+        }
+
+        item {
+            SelectedCalendarDayCard(
+                selectedDate = selectedDate,
+                today = today,
+                teamId = teamId,
+                game = selectedGame,
+                scheduleColors = scheduleColors,
+                onGameClick = onGameClick
+            )
+        }
+    }
+}
+
+@Composable
+private fun CalendarMonthHeader(
+    visibleMonth: YearMonth,
+    subtitle: String,
+    onPreviousMonth: () -> Unit,
+    onNextMonth: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(top = 2.dp, bottom = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        MonthArrowButton(
+            onClick = onPreviousMonth,
+            direction = CalendarMonthDirection.Previous
+        )
+
+        Column(
+            modifier = Modifier.weight(1f),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = visibleMonth.format(monthFormatter),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.ExtraBold,
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center
+            )
+
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                maxLines = 1
+            )
+        }
+
+        MonthArrowButton(
+            onClick = onNextMonth,
+            direction = CalendarMonthDirection.Next
+        )
+    }
+}
+
+@Composable
+private fun MonthArrowButton(
+    onClick: () -> Unit,
+    direction: CalendarMonthDirection,
+    modifier: Modifier = Modifier
+) {
+    IconButton(
+        onClick = onClick,
+        modifier = modifier
+    ) {
+        Icon(
+            imageVector = when (direction) {
+                CalendarMonthDirection.Previous -> Icons.Default.ChevronLeft
+                CalendarMonthDirection.Next -> Icons.Default.ChevronRight
+            },
+            contentDescription = when (direction) {
+                CalendarMonthDirection.Previous -> "Previous month"
+                CalendarMonthDirection.Next -> "Next month"
+            },
+            tint = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.size(24.dp)
+        )
+    }
+}
+
+@Composable
+private fun WeekdayHeader(modifier: Modifier = Modifier) {
+    Row(modifier = modifier.fillMaxWidth()) {
+        weekdayLabels.forEach { label ->
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
+                textAlign = TextAlign.Center,
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+}
+
+@Composable
+private fun ScheduleMonthGrid(
+    visibleMonth: YearMonth,
+    selectedDate: LocalDate,
+    today: LocalDate,
+    gamesByDate: Map<LocalDate, List<GameCardUiModel>>,
+    scheduleColors: ScheduleColors,
+    onDateSelected: (LocalDate) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val weeks = remember(visibleMonth) {
+        calendarDatesFor(visibleMonth).chunked(7)
+    }
+
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.72f),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.18f))
+    ) {
+        Column(modifier = Modifier.clip(RoundedCornerShape(20.dp))) {
+            weeks.forEachIndexed { weekIndex, week ->
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    week.forEachIndexed { dayIndex, date ->
+                        CalendarGameDayCell(
+                            date = date,
+                            visibleMonth = visibleMonth,
+                            selected = date == selectedDate,
+                            isToday = date == today,
+                            games = gamesByDate[date].orEmpty(),
+                            scheduleColors = scheduleColors,
+                            onClick = { onDateSelected(date) },
+                            modifier = Modifier.weight(1f)
+                        )
+
+                        if (dayIndex < 6) {
+                            VerticalDivider(
+                                modifier = Modifier
+                                    .height(CalendarDayCellHeight)
+                                    .width(1.dp),
+                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.16f)
+                            )
+                        }
+                    }
+                }
+
+                if (weekIndex < weeks.lastIndex) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.16f))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CalendarGameDayCell(
+    date: LocalDate,
+    visibleMonth: YearMonth,
+    selected: Boolean,
+    isToday: Boolean,
+    games: List<GameCardUiModel>,
+    scheduleColors: ScheduleColors,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val inVisibleMonth = YearMonth.from(date) == visibleMonth
+    val primaryGame = games.firstOrNull()
+    val dateColor = when {
+        selected -> scheduleColors.todayOutline
+        inVisibleMonth -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.78f)
+        else -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.36f)
+    }
+
+    Box(
+        modifier = modifier
+            .height(CalendarDayCellHeight)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 4.dp, vertical = 5.dp),
+        contentAlignment = Alignment.TopCenter
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = date.dayOfMonth.toString(),
+                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                fontWeight = if (selected) FontWeight.ExtraBold else FontWeight.Medium,
+                color = dateColor,
+                textAlign = TextAlign.Center,
+                maxLines = 1
+            )
+
+            if (isToday && !selected) {
+                Box(
+                    modifier = Modifier
+                        .padding(top = 2.dp)
+                        .size(4.dp)
+                        .background(scheduleColors.todayOutline, CircleShape)
+                )
+            } else {
+                Spacer(Modifier.height(6.dp))
+            }
+        }
+
+        if (primaryGame != null) {
+            CalendarGameChip(
+                games = games,
+                selected = selected,
+                scheduleColors = scheduleColors,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+            )
+        }
+    }
+}
+
+@Composable
+private fun CalendarGameChip(
+    games: List<GameCardUiModel>,
+    selected: Boolean,
+    scheduleColors: ScheduleColors,
+    modifier: Modifier = Modifier
+) {
+    val game = games.first()
+    val isDoubleheader = games.size > 1
+    val isCompleted = game.outcome != GameOutcome.Pending && game.score.isNotBlank() && game.score != "—"
+    val containerColor = when {
+        selected -> scheduleColors.todayContainer
+        game.isHome -> scheduleColors.homeContainer
+        else -> scheduleColors.awayContainer
+    }
+    val contentColor = when {
+        selected -> scheduleColors.onTodayContainer
+        game.isHome -> scheduleColors.onHomeContainer
+        else -> scheduleColors.onAwayContainer
+    }
+    val secondaryContentColor = contentColor.copy(alpha = 0.78f)
+    val lineOne = game.opponentAbbreviation
+    val lineTwo = when {
+        isDoubleheader -> "${games.size} Games"
+        isCompleted -> game.completedResultLabel()
+        else -> game.gameTimeOrScore().let { if (it == "Scheduled") "TBD" else it }
+    }
+
     Surface(
+        modifier = modifier.heightIn(min = 44.dp),
+        shape = RoundedCornerShape(12.dp),
+        color = containerColor,
+        tonalElevation = if (selected) 2.dp else 0.dp,
+        border = if (selected) BorderStroke(1.dp, scheduleColors.todayOutline.copy(alpha = 0.55f)) else null
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 3.dp, vertical = 4.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(
+                text = lineOne,
+                style = MaterialTheme.typography.labelSmall.copy(fontSize = 13.sp),
+                fontWeight = FontWeight.ExtraBold,
+                color = contentColor,
+                maxLines = 1,
+                textAlign = TextAlign.Center,
+                overflow = TextOverflow.Clip
+            )
+
+            Text(
+                text = lineTwo,
+                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                fontWeight = FontWeight.Medium,
+                color = secondaryContentColor,
+                maxLines = 1,
+                textAlign = TextAlign.Center,
+                overflow = TextOverflow.Clip
+            )
+        }
+    }
+}
+
+@Composable
+private fun CalendarLegend(
+    scheduleColors: ScheduleColors,
+    modifier: Modifier = Modifier
+) {
+    Row(
         modifier = modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
-        color = if (isSelected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent
+            .padding(vertical = 10.dp),
+        horizontalArrangement = Arrangement.spacedBy(14.dp, Alignment.CenterHorizontally),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = game.shortDate,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                )
-                Text(
-                    text = game.matchup,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+        LegendItem(label = "Home", containerColor = scheduleColors.homeContainer)
+        LegendItem(label = "Away", containerColor = scheduleColors.awayContainer)
+        LegendItem(
+            label = "Today",
+            containerColor = Color.Transparent,
+            indicatorColor = scheduleColors.todayOutline,
+            isToday = true
+        )
+        LegendItem(
+            label = "Selected",
+            containerColor = scheduleColors.todayContainer,
+            borderColor = scheduleColors.todayOutline
+        )
+    }
+}
+
+@Composable
+private fun LegendItem(
+    label: String,
+    containerColor: Color,
+    borderColor: Color? = null,
+    indicatorColor: Color? = null,
+    isToday: Boolean = false,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        if (isToday) {
+            Box(
+                modifier = Modifier
+                    .size(10.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(6.dp)
+                        .background(indicatorColor ?: Color.Transparent, CircleShape)
                 )
             }
+        } else {
+            Surface(
+                modifier = Modifier.size(width = 18.dp, height = 11.dp),
+                shape = RoundedCornerShape(3.dp),
+                color = containerColor,
+                border = borderColor?.let { BorderStroke(1.dp, it.copy(alpha = 0.55f)) },
+                tonalElevation = if (borderColor != null) 2.dp else 0.dp
+            ) {}
+        }
 
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (game.score.isNotBlank() && game.score != "—") {
-                    Text(
-                        text = game.score,
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Medium
-                    )
-                    if (game.resultText.isNotBlank()) {
-                        Spacer(modifier = Modifier.width(8.dp))
-                        val resultColor = when (game.outcome) {
-                            GameOutcome.Win -> MaterialTheme.colorScheme.primary
-                            GameOutcome.Loss -> MaterialTheme.colorScheme.error
-                            else -> MaterialTheme.colorScheme.onSurfaceVariant
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 1
+        )
+    }
+}
+
+@Composable
+private fun SelectedCalendarDayCard(
+    selectedDate: LocalDate,
+    today: LocalDate,
+    teamId: Int,
+    game: GameCardUiModel?,
+    scheduleColors: ScheduleColors,
+    onGameClick: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier.fillMaxWidth()) {
+        if (game == null) {
+            Surface(
+                shape = RoundedCornerShape(22.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = "No game scheduled",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(22.dp)
+                )
+            }
+        } else {
+            Surface(
+                onClick = { onGameClick(game.id) },
+                shape = RoundedCornerShape(22.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                tonalElevation = 2.dp,
+                shadowElevation = 1.dp,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.18f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1.05f)) {
+                        Surface(
+                            shape = RoundedCornerShape(7.dp),
+                            color = scheduleColors.todayContainer,
+                        ) {
+                            Text(
+                                text = if (selectedDate == today) "TODAY" else selectedDate.format(shortDayFormatter).uppercase(Locale.US),
+                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                fontWeight = FontWeight.ExtraBold,
+                                color = scheduleColors.onTodayContainer,
+                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
+                                maxLines = 1
+                            )
                         }
+
+                        Spacer(Modifier.height(4.dp))
+
                         Text(
-                            text = game.resultText,
-                            style = MaterialTheme.typography.labelLarge,
-                            color = resultColor,
-                            fontWeight = FontWeight.Bold
+                            text = game.gameTimeOrScore(),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1
+                        )
+
+                        Text(
+                            text = game.ballpark,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
-                } else {
-                    Text(
-                        text = "Scheduled",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+
+                    Row(
+                        modifier = Modifier.weight(2.15f),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        TeamLogoMark(
+                            teamId = teamId,
+                            teamName = MlbTeams.get(teamId).shortName,
+                            modifier = Modifier.size(32.dp)
+                        )
+
+                        Spacer(Modifier.width(6.dp))
+
+                        Text(
+                            text = MlbTeams.get(teamId).abbreviation,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1
+                        )
+
+                        Text(
+                            text = "\u2022",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 8.dp)
+                        )
+
+                        Text(
+                            text = game.opponentAbbreviation,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1
+                        )
+
+                        Spacer(Modifier.width(6.dp))
+
+                        TeamLogoMark(
+                            teamId = teamIdForAbbreviation(game.opponentAbbreviation),
+                            teamName = game.opponentAbbreviation,
+                            modifier = Modifier.size(32.dp)
+                        )
+                    }
+
+                    Icon(
+                        imageVector = Icons.Default.ChevronRight,
+                        contentDescription = "Open game",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }
@@ -283,16 +858,39 @@ private fun ScheduleListItem(
 }
 
 @Composable
-private fun ScheduleCalendarView(
-    uiState: TeamScheduleUiState,
-    onGameClick: (Int) -> Unit,
+private fun TeamLogoMark(
+    teamId: Int,
+    teamName: String,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+
     Box(
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier
+            .background(MaterialTheme.colorScheme.surfaceContainerHighest, CircleShape)
+            .padding(4.dp),
         contentAlignment = Alignment.Center
     ) {
-        Text("Calendar View Coming Soon")
+        if (teamId > 0) {
+            AsyncImage(
+                model = ImageRequest.Builder(context)
+                    .data("https://www.mlbstatic.com/team-logos/$teamId.svg")
+                    .decoderFactory(SvgDecoder.Factory())
+                    .crossfade(true)
+                    .build(),
+                contentDescription = "$teamName logo",
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.fillMaxSize()
+            )
+        } else {
+            Text(
+                text = teamName.take(3),
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.ExtraBold,
+                color = MaterialTheme.colorScheme.primary,
+                textAlign = TextAlign.Center
+            )
+        }
     }
 }
 
@@ -306,7 +904,7 @@ private fun ScheduleSeriesView(
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(vertical = 8.dp)
+        contentPadding = PaddingValues(start = 0.dp, top = 8.dp, end = 0.dp, bottom = 8.dp)
     ) {
         series.forEachIndexed { index, section ->
             item(key = "series_${section.title}_${section.games.firstOrNull()?.id ?: index}") {
@@ -320,7 +918,6 @@ private fun ScheduleSeriesView(
     }
 }
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun SeriesExpandableCard(
     section: ScheduleSectionUiModel,
@@ -353,7 +950,7 @@ private fun SeriesExpandableCard(
     val seriesText = when {
         wins > losses -> if (isCompleted) "Won $wins-$losses" else "Leading $wins-$losses"
         losses > wins -> if (isCompleted) "Lost $wins-$losses" else "Trailing $wins-$losses"
-        wins == losses && (wins > 0 || isCompleted) -> if (isCompleted) "Split $wins-$wins" else "Tied $wins-$wins"
+        wins > 0 || isCompleted -> if (isCompleted) "Split $wins-$wins" else "Tied $wins-$wins"
         else -> null
     }
 
@@ -434,17 +1031,20 @@ private fun SeriesExpandableCard(
                 Column(
                     modifier = Modifier
                         .padding(bottom = 12.dp, start = 12.dp, end = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap)
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     section.games.forEachIndexed { index, game ->
+                        val shape = when {
+                            section.games.size == 1 -> RoundedCornerShape(12.dp)
+                            index == 0 -> RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp, bottomStart = 4.dp, bottomEnd = 4.dp)
+                            index == section.games.size - 1 -> RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomStart = 12.dp, bottomEnd = 12.dp)
+                            else -> RoundedCornerShape(4.dp)
+                        }
                         SeriesGameListItem(
                             game = game,
                             isSelected = game.id == selectedGameId,
                             onClick = { onGameClick(game.id) },
-                            shape = ListItemDefaults.segmentedShapes(
-                                index = index,
-                                count = section.games.size
-                            ).shape
+                            shape = shape
                         )
                     }
                 }
@@ -519,32 +1119,6 @@ private fun SeriesGameListItem(
     }
 }
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
-@Composable
-private fun ScheduleViewSelector(
-    selectedView: ScheduleView,
-    onViewSelected: (ScheduleView) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    ButtonGroup(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(16.dp),
-        horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
-        overflowIndicator = {}
-    ) {
-        ScheduleView.entries.forEach { view ->
-            val isSelected = view == selectedView
-            toggleableItem(
-                checked = isSelected,
-                onCheckedChange = { checked -> if (checked) onViewSelected(view) },
-                label = view.name,
-                weight = 1f
-            )
-        }
-    }
-}
-
 private fun List<GameCardUiModel>.toMonthlySections(): List<ScheduleSectionUiModel> {
     return groupBy { game ->
         val parts = game.shortDate.split(" ")
@@ -602,6 +1176,129 @@ private fun createSeriesTitle(game: GameCardUiModel): String {
     }
 }
 
+private enum class CalendarMonthDirection {
+    Previous,
+    Next
+}
+
+private fun calendarDatesFor(month: YearMonth): List<LocalDate> {
+    val firstDay = month.atDay(1)
+    val leadingDays = firstDay.dayOfWeek.value % 7
+    val firstVisibleDate = firstDay.minusDays(leadingDays.toLong())
+    val lastDay = month.atEndOfMonth()
+    val trailingDays = 6 - (lastDay.dayOfWeek.value % 7)
+    val lastVisibleDate = lastDay.plusDays(trailingDays.toLong())
+    val totalDays = ChronoUnit.DAYS.between(firstVisibleDate, lastVisibleDate).toInt() + 1
+
+    return List(totalDays) { offset -> firstVisibleDate.plusDays(offset.toLong()) }
+}
+
+private fun GameCardUiModel.localDate(): LocalDate? {
+    return runCatching {
+        OffsetDateTime.parse(date).atZoneSameInstant(ZoneId.systemDefault()).toLocalDate()
+    }.getOrNull() ?: runCatching {
+        LocalDate.parse(date)
+    }.getOrNull()
+}
+
+private fun GameCardUiModel.gameTimeOrScore(): String {
+    // Fixed encoding issue where em-dash was represented as "â€”"
+    if (score.isNotBlank() && score != "—") return score
+
+    return runCatching {
+        OffsetDateTime.parse(date)
+            .atZoneSameInstant(ZoneId.systemDefault())
+            .format(timeFormatter)
+    }.getOrElse {
+        // Fallback for dates without time/offset (e.g., "2026-04-04")
+        "Scheduled"
+    }
+}
+
+private fun String.toLocalDateOr(fallback: LocalDate): LocalDate {
+    return runCatching { LocalDate.parse(this) }.getOrDefault(fallback)
+}
+
+private fun GameCardUiModel.completedResultLabel(): String {
+    val prefix = when (resultText.lowercase(Locale.US)) {
+        "win", "w" -> "W"
+        "loss", "l" -> "L"
+        else -> resultText.take(1).uppercase(Locale.US)
+    }
+    val normalizedScore = score.replace(" ", "")
+    return listOf(prefix, normalizedScore)
+        .filter { it.isNotBlank() && it != "\u2014" && it != "-" }
+        .joinToString(" ")
+}
+
+private fun String.toYearMonthOr(fallback: YearMonth): YearMonth {
+    return runCatching { YearMonth.parse(this) }.getOrDefault(fallback)
+}
+
+private fun LocalDate.daySectionTitle(today: LocalDate): String {
+    val prefix = when (this) {
+        today -> "Today"
+        today.plusDays(1) -> "Tomorrow"
+        today.minusDays(1) -> "Yesterday"
+        else -> null
+    }
+    val dateLabel = format(dayFormatter)
+    return if (prefix == null) dateLabel else "$prefix \u00B7 $dateLabel"
+}
+
+private fun teamIdForAbbreviation(abbreviation: String): Int {
+    return MlbTeams.byId.values.firstOrNull {
+        it.abbreviation.equals(abbreviation, ignoreCase = true)
+    }?.id ?: 0
+}
+
+private val weekdayLabels = listOf("SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT")
+private val monthFormatter = DateTimeFormatter.ofPattern("MMMM yyyy", Locale.US)
+private val dayFormatter = DateTimeFormatter.ofPattern("EEE, MMM d", Locale.US)
+private val shortDayFormatter = DateTimeFormatter.ofPattern("MMM d", Locale.US)
+private val timeFormatter = DateTimeFormatter.ofPattern("h:mm a", Locale.US)
+private val CalendarDayCellHeight = 86.dp
+
+private data class ScheduleColors(
+    val accent: Color,
+    val homeContainer: Color,
+    val onHomeContainer: Color,
+    val awayContainer: Color,
+    val onAwayContainer: Color,
+    val todayContainer: Color,
+    val onTodayContainer: Color,
+    val todayOutline: Color,
+    val springTrainingContainer: Color,
+    val springTrainingOutline: Color
+)
+
+@Composable
+private fun rememberScheduleColors(): ScheduleColors {
+    val colorScheme = MaterialTheme.colorScheme
+
+    return ScheduleColors(
+        // Primary = team/app accent for branding moments.
+        accent = colorScheme.primary,
+
+        // Secondary container = home games.
+        homeContainer = colorScheme.secondaryContainer,
+        onHomeContainer = colorScheme.onSecondaryContainer,
+
+        // Neutral surface = away games.
+        awayContainer = colorScheme.surfaceContainerHighest,
+        onAwayContainer = colorScheme.onSurface,
+
+        // Tertiary = today / selected game state.
+        todayContainer = colorScheme.tertiaryContainer,
+        onTodayContainer = colorScheme.onTertiaryContainer,
+        todayOutline = colorScheme.tertiary,
+
+        // Spring training = outlined accent style.
+        springTrainingContainer = colorScheme.primary.copy(alpha = 0.12f),
+        springTrainingOutline = colorScheme.primary
+    )
+}
+
 @Preview(name = "List View", showBackground = true)
 @Composable
 private fun TeamScheduleListPreview() {
@@ -613,12 +1310,14 @@ private fun TeamScheduleListPreview() {
                 gameRows = sampleGameRows,
                 selectedGamePk = 2,
                 error = null
-            )
+            ),
+            teamId = 143,
+            onViewSelected = {}
         )
     }
 }
 
-@Preview(name = "Calendar View", showBackground = true)
+@Preview(name = "Calendar View", showBackground = true, device = "id:pixel_5")
 @Composable
 private fun TeamScheduleCalendarPreview() {
     DugoutTheme {
@@ -628,7 +1327,9 @@ private fun TeamScheduleCalendarPreview() {
                 selectedView = ScheduleView.Calendar,
                 gameRows = sampleGameRows,
                 error = null
-            )
+            ),
+            teamId = 143,
+            onViewSelected = {}
         )
     }
 }
@@ -646,7 +1347,9 @@ private fun TeamScheduleSeriesPreview() {
                 gameRows = sampleGameRows,
                 selectedGamePk = 2,
                 error = null
-            )
+            ),
+            teamId = 143,
+            onViewSelected = {}
         )
     }
 }

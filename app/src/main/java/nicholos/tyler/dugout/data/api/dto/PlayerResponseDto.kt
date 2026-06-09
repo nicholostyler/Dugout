@@ -17,8 +17,20 @@ data class PlayerApiDto(
     @SerialName("fullName")
     val fullName: String,
 
+    @SerialName("firstName")
+    val firstName: String? = null,
+
+    @SerialName("lastName")
+    val lastName: String? = null,
+
+    @SerialName("useName")
+    val useName: String? = null,
+
     @SerialName("primaryNumber")
     val primaryNumber: String? = null,
+
+    @SerialName("active")
+    val active: Boolean? = null,
 
     @SerialName("currentAge")
     val currentAge: Int? = null,
@@ -128,6 +140,9 @@ data class PlayerStatValuesDto(
     @SerialName("runs")
     val runs: Int? = null,
 
+    @SerialName("earnedRuns")
+    val earnedRuns: Int? = null,
+
     @SerialName("doubles")
     val doubles: Int? = null,
 
@@ -142,6 +157,9 @@ data class PlayerStatValuesDto(
 
     @SerialName("baseOnBalls")
     val baseOnBalls: Int? = null,
+
+    @SerialName("hitByPitch")
+    val hitByPitch: Int? = null,
 
     @SerialName("hits")
     val hits: Int? = null,
@@ -181,6 +199,15 @@ data class PlayerStatValuesDto(
 
     @SerialName("saves")
     val saves: Int? = null,
+
+    @SerialName("outs")
+    val outs: Int? = null,
+
+    @SerialName("gamesPitched")
+    val gamesPitched: Int? = null,
+
+    @SerialName("battersFaced")
+    val battersFaced: Int? = null,
 
     @SerialName("assists")
     val assists: Int? = null,

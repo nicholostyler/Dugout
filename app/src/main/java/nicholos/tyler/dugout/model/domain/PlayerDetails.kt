@@ -1,12 +1,11 @@
 package nicholos.tyler.dugout.model.domain
 
-import nicholos.tyler.dugout.data.repository.PlayerSplitStatLine
-
 data class PlayerDetails(
     val id: Int,
     val fullName: String,
     val jerseyNumber: String?,
     val position: String,
+    val teamId: Int?,
     val teamName: String?,
     val age: Int?,
     val height: String?,
@@ -15,7 +14,7 @@ data class PlayerDetails(
     val throwsHand: String?,
     val quickStats: List<PlayerQuickStat>,
     val statSections: List<PlayerStatSection>,
-    val splitSections: List<PlayerSplitStatLine> = emptyList()
+    val splitSections: PlayerSplitSections = PlayerSplitSections()
 )
 
 data class PlayerQuickStat(
@@ -43,4 +42,16 @@ data class PlayerStatLine(
 data class PlayerStatItem(
     val label: String,
     val value: String
+)
+
+data class PlayerSplitSections(
+    val season: List<PlayerSplitStatLine> = emptyList(),
+    val career: List<PlayerSplitStatLine> = emptyList()
+)
+
+data class PlayerSplitStatLine(
+    val title: String,
+    val subtitle: String? = null,
+    val teamId: Int? = null,
+    val stats: List<PlayerStatItem>
 )

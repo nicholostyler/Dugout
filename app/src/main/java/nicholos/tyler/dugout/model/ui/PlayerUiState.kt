@@ -21,6 +21,7 @@ data class PlayerProfileUiModel(
     val fullName: String,
     val jerseyNumber: String?,
     val position: String,
+    val teamId: Int?,
     val teamName: String?,
     val age: Int?,
     val height: String?,
@@ -29,7 +30,8 @@ data class PlayerProfileUiModel(
     val throwsHand: String?,
     val quickStats: List<PlayerQuickStatUiModel>,
     val categories: List<PlayerCategoryStatsUiModel>,
-    val splits: List<PlayerSplitStatsUiModel>
+    val seasonSplits: List<PlayerSplitStatsUiModel>,
+    val careerSplits: List<PlayerSplitStatsUiModel>
 )
 
 data class PlayerQuickStatUiModel(
@@ -47,5 +49,7 @@ data class PlayerCategoryStatsUiModel(
 
 data class PlayerSplitStatsUiModel(
     val title: String,
+    val subtitle: String? = null,
+    val teamId: Int? = null,
     val stats: List<PlayerStatItem>
 )

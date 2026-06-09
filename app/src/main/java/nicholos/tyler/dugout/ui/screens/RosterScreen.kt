@@ -29,11 +29,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Matrix
 import androidx.compose.ui.graphics.Outline
-import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.asComposePath
 import androidx.compose.ui.layout.ContentScale
@@ -53,6 +50,7 @@ import nicholos.tyler.dugout.model.ui.RosterPlayerUiModel
 import nicholos.tyler.dugout.model.ui.RosterSectionUiModel
 import nicholos.tyler.dugout.model.ui.RosterSummaryUiModel
 import nicholos.tyler.dugout.model.ui.RosterUiState
+import nicholos.tyler.dugout.ui.components.TitleActionRow
 import nicholos.tyler.dugout.ui.theme.DugoutTheme
 import nicholos.tyler.dugout.viewmodel.RosterViewModel
 import kotlin.math.max
@@ -112,8 +110,12 @@ fun RosterScreenContent(
                 contentPadding = PaddingValues(vertical = 12.dp)
             ) {
                 uiState.sections.forEach { section ->
-                    stickyHeader {
-                        RosterSectionHeader(title = section.title)
+                    item {
+                        TitleActionRow(
+                            title = section.title,
+                            actionText = "",
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                        )
                     }
 
                     item {
@@ -125,24 +127,6 @@ fun RosterScreenContent(
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun RosterSectionHeader(
-    title: String,
-    modifier: Modifier = Modifier
-) {
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surface
-    ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-        )
     }
 }
 

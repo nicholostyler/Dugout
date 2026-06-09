@@ -53,6 +53,9 @@ data class StatsSplitDto(
     @SerialName("sport")
     val sport: NamedIdDto? = null,
 
+    @SerialName("opponent")
+    val opponent: NamedIdDto? = null,
+
     @SerialName("value")
     val value: String? = null,
 

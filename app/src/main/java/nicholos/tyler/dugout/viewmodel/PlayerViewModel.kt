@@ -96,6 +96,7 @@ private fun PlayerDetails.toUiModel(): PlayerProfileUiModel {
         fullName = fullName,
         jerseyNumber = jerseyNumber,
         position = position,
+        teamId = teamId,
         teamName = teamName,
         age = age,
         height = height,
@@ -117,9 +118,19 @@ private fun PlayerDetails.toUiModel(): PlayerProfileUiModel {
                 careerSecondary = section.career?.secondaryStats.orEmpty()
             )
         },
-        splits = splitSections.map { split ->
+        seasonSplits = splitSections.season.map { split ->
             PlayerSplitStatsUiModel(
                 title = split.title,
+                subtitle = split.subtitle,
+                teamId = split.teamId,
+                stats = split.stats
+            )
+        },
+        careerSplits = splitSections.career.map { split ->
+            PlayerSplitStatsUiModel(
+                title = split.title,
+                subtitle = split.subtitle,
+                teamId = split.teamId,
                 stats = split.stats
             )
         }

@@ -96,7 +96,7 @@ private fun SnapshotCardContainer(
             .clickable { onClick(model.gameId) },
         elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp),
         colors = CardDefaults.elevatedCardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer
+            containerColor = MaterialTheme.colorScheme.surfaceContainer
         )
     ) {
         content()
@@ -161,7 +161,7 @@ private fun QuickViewHeader(model: GameSnapshotCardUiModel) {
             text = headerText,
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onPrimaryContainer
+            color = MaterialTheme.colorScheme.onSurface
         )
     }
 }
@@ -199,7 +199,7 @@ private fun QuickViewTeamsAndPitchers(model: GameSnapshotCardUiModel) {
                 } else {
                     MaterialTheme.typography.labelLarge
                 },
-                color = MaterialTheme.colorScheme.onPrimaryContainer
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
 
@@ -267,7 +267,7 @@ private fun LinescoreBoxscoreHeader(model: GameSnapshotCardUiModel) {
             text = "FINAL",
             style = MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.Black,
-            color = MaterialTheme.colorScheme.onPrimaryContainer,
+            color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.padding(horizontal = 12.dp)
         )
 
@@ -310,7 +310,7 @@ private fun FinalTeamAbbreviationText(abbreviation: String) {
         text = abbreviation,
         style = MaterialTheme.typography.titleMedium,
         fontWeight = FontWeight.Bold,
-        color = MaterialTheme.colorScheme.onPrimaryContainer
+        color = MaterialTheme.colorScheme.onSurface
     )
 }
 
@@ -320,7 +320,7 @@ private fun FinalScoreText(score: String) {
         text = score,
         style = MaterialTheme.typography.headlineSmall,
         fontWeight = FontWeight.ExtraBold,
-        color = MaterialTheme.colorScheme.onPrimaryContainer
+        color = MaterialTheme.colorScheme.onSurface
     )
 }
 
@@ -335,7 +335,7 @@ fun LiveGameSnapshotCard(
         modifier = modifier.fillMaxWidth(),
         elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp),
         colors = CardDefaults.elevatedCardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer
+            containerColor = MaterialTheme.colorScheme.surfaceContainer
         )
     ) {
         LiveGameSnapshotContent(model = model)
@@ -389,7 +389,7 @@ private fun LiveTeamScoreColumn(
             text = team.name.shortName,
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onPrimaryContainer
+            color = MaterialTheme.colorScheme.onSurface
         )
         Text(
             text = team.score.ifBlank { "0" },
@@ -398,12 +398,12 @@ private fun LiveTeamScoreColumn(
                 lineHeight = 72.sp
             ),
             fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onPrimaryContainer
+            color = MaterialTheme.colorScheme.onSurface
         )
         Text(
             text = team.record,
             style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.72f)
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f)
         )
     }
 }
@@ -419,7 +419,7 @@ private fun LiveGameCenterColumn(model: GameSnapshotCardUiModel) {
         Text(
             text = "@",
             style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.4f)
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
         )
         Spacer(modifier = Modifier.height(12.dp))
         DiamondRunners(
@@ -427,14 +427,14 @@ private fun LiveGameCenterColumn(model: GameSnapshotCardUiModel) {
             onSecond = model.onSecond,
             onThird = model.onThird,
             modifier = Modifier.size(32.dp),
-            unoccupiedColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.28f)
+            unoccupiedColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.28f)
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
             text = model.outsText.ifBlank { "0 Outs" },
             style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onPrimaryContainer
+            color = MaterialTheme.colorScheme.onSurface
         )
     }
 }
@@ -476,7 +476,7 @@ fun DiamondRunners(
     onSecond: Boolean,
     onThird: Boolean,
     modifier: Modifier = Modifier,
-    unoccupiedColor: Color = MaterialTheme.colorScheme.onPrimaryContainer,
+    unoccupiedColor: Color = MaterialTheme.colorScheme.onSurface,
     baseSize: Dp = 9.dp
 ) {
     Box(
@@ -614,7 +614,7 @@ private fun LinescoreHeaderRow(
                     modifier = Modifier.width(18.dp),
                     style = MaterialTheme.typography.labelSmall,
                     textAlign = TextAlign.Center,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                    color = MaterialTheme.colorScheme.onSurface
                 )
             }
         }
@@ -664,7 +664,7 @@ private fun TeamLinescoreRow(
             text = teamName,
             modifier = Modifier.width(60.dp),
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onPrimaryContainer,
+            color = MaterialTheme.colorScheme.onSurface,
             fontWeight = FontWeight.Bold,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
@@ -698,7 +698,7 @@ private fun LinescoreTotals(totals: TeamTotalUiModel) {
             text = totals.runs.toString(),
             modifier = Modifier.width(20.dp),
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onPrimaryContainer,
+            color = MaterialTheme.colorScheme.onSurface,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center
         )
@@ -706,14 +706,14 @@ private fun LinescoreTotals(totals: TeamTotalUiModel) {
             text = totals.hits.toString(),
             modifier = Modifier.width(20.dp),
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onPrimaryContainer,
+            color = MaterialTheme.colorScheme.onSurface,
             textAlign = TextAlign.Center
         )
         Text(
             text = totals.errors.toString(),
             modifier = Modifier.width(20.dp),
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onPrimaryContainer,
+            color = MaterialTheme.colorScheme.onSurface,
             textAlign = TextAlign.Center
         )
     }
@@ -751,13 +751,13 @@ private fun SnapshotTeamColumn(
             overflow = TextOverflow.Ellipsis
         )
 
-        if (emphasize) PitcherText(probablePitcher = probablePitcher, MaterialTheme.colorScheme.onPrimaryContainer) else PitcherText(probablePitcher = probablePitcher)
+        if (emphasize) PitcherText(probablePitcher = probablePitcher, MaterialTheme.colorScheme.onSurfaceVariant) else PitcherText(probablePitcher = probablePitcher)
 
         if (record.isNotBlank() && !showScore) {
             Text(
                 text = "($record)",
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
             )
         }
@@ -778,7 +778,7 @@ private fun SnapshotTeamColumn(
 }
 
 @Composable
-private fun PitcherText(probablePitcher: String?, color: Color = MaterialTheme.colorScheme.onPrimaryContainer) {
+private fun PitcherText(probablePitcher: String?, color: Color = MaterialTheme.colorScheme.onSurfaceVariant) {
     Text(
         text = probablePitcher.takeUnless { it.isNullOrBlank() } ?: "TBD",
         modifier = Modifier.fillMaxWidth(),

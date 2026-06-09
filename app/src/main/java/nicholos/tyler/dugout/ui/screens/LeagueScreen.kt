@@ -6,9 +6,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -25,6 +28,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import nicholos.tyler.dugout.ui.components.TitleActionRow
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -44,6 +48,7 @@ import nicholos.tyler.dugout.model.ui.LeagueLeadersUiState
 import nicholos.tyler.dugout.model.ui.LeagueUiState
 import nicholos.tyler.dugout.ui.components.DivisionStandingUiModel
 import nicholos.tyler.dugout.ui.components.DivisionStandingsCard
+import nicholos.tyler.dugout.ui.components.WildCardStandingsCard
 import nicholos.tyler.dugout.ui.theme.DugoutTheme
 import nicholos.tyler.dugout.viewmodel.LeagueLeadersViewModel
 import nicholos.tyler.dugout.viewmodel.LeagueViewModel
@@ -74,6 +79,7 @@ enum class StatsGroup {
     PITCHING
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun LeagueScreen(
     modifier: Modifier = Modifier,
@@ -97,7 +103,7 @@ fun LeagueScreen(
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun LeagueScreen(
     modifier: Modifier = Modifier,
@@ -252,13 +258,27 @@ fun LeagueScreen(
                         contentPadding = PaddingValues(bottom = 12.dp, start = 12.dp, end = 12.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        if (selectedLeague == LeagueFilter.ALL) {
+                        if (viewType == StandingViewType.WILD_CARD) {
+                            items(
+                                items = visibleDivisions,
+                                key = { "WC_${it.divisionName}" }
+                            ) { league ->
+                                WildCardStandingsCard(
+                                    title = league.divisionName,
+                                    standings = league.teams.map { it.toDivisionStandingUiModel() },
+                                    onTeamClick = { team -> onTeamClick(team.teamId) }
+                                )
+                            }
+                        } else if (selectedLeague == LeagueFilter.ALL) {
                             val alSections = visibleDivisions.filter {
                                 it.divisionName.contains("American", ignoreCase = true)
                             }
                             if (alSections.isNotEmpty()) {
                                 item(key = "AL_HEADER_ALL") {
-                                    LeagueHeader(text = "American League")
+                                    TitleActionRow(
+                                        title = "American League",
+                                        actionText = ""
+                                    )
                                 }
                                 items(
                                     items = alSections,
@@ -277,7 +297,10 @@ fun LeagueScreen(
                             }
                             if (nlSections.isNotEmpty()) {
                                 item(key = "NL_HEADER_ALL") {
-                                    LeagueHeader(text = "National League")
+                                    TitleActionRow(
+                                        title = "National League",
+                                        actionText = ""
+                                    )
                                 }
                                 items(
                                     items = nlSections,
@@ -304,7 +327,7 @@ fun LeagueScreen(
                         }
                     }
                 } else {
-                    LeagueLeadersScreenContent(
+                    nicholos.tyler.dugout.ui.screens.LeagueLeadersScreenContent(
                         uiState = statsUiState,
                         modifier = Modifier.fillMaxSize(),
                         onLeaderClick = { id, isPlayer ->
@@ -321,23 +344,22 @@ fun LeagueScreen(
     }
 }
 
+
+
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun LeagueHeader(
-    text: String,
-    modifier: Modifier = Modifier
+private fun LeagueLeadersScreenProxy(
+    uiState: LeagueLeadersUiState,
+    modifier: Modifier = Modifier,
+    onLeaderClick: (Int, Boolean) -> Unit = { _, _ -> }
 ) {
-    Text(
-        text = text.uppercase(),
-        style = MaterialTheme.typography.labelLarge,
-        fontWeight = FontWeight.Bold,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 8.dp)
+    nicholos.tyler.dugout.ui.screens.LeagueLeadersScreenContent(
+        uiState = uiState,
+        modifier = modifier,
+        onLeaderClick = onLeaderClick
     )
 }
-
-
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -365,34 +387,13 @@ private fun LeagueFilterSection(
             .padding(vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        ButtonGroup(
+        LeagueMainTabToggle(
+            selectedTab = selectedTab,
+            onTabSelected = onTabSelected,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 4.dp),
-            overflowIndicator = {},
-            expandedRatio = 0f,
-            horizontalArrangement = Arrangement.spacedBy(
-                ButtonGroupDefaults.ConnectedSpaceBetween
-            )
-        ) {
-            toggleableItem(
-                checked = selectedTab == LeagueTab.STANDINGS,
-                label = "Standings",
-                onCheckedChange = { checked ->
-                    if (checked) onTabSelected(LeagueTab.STANDINGS)
-                },
-                weight = 1f
-            )
-
-            toggleableItem(
-                checked = selectedTab == LeagueTab.STATS,
-                label = "Stats",
-                onCheckedChange = { checked ->
-                    if (checked) onTabSelected(LeagueTab.STATS)
-                },
-                weight = 1f
-            )
-        }
+                .padding(horizontal = 16.dp, vertical = 4.dp)
+        )
 
         if (selectedTab == LeagueTab.STANDINGS) {
             Row(
@@ -493,10 +494,10 @@ private fun LeagueFilterSection(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp),
+                    .horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                Spacer(modifier = Modifier.width(16.dp))
                 // Group Chip (Hitting/Pitching)
                 var showGroupMenu by remember { mutableStateOf(false) }
                 Box {
@@ -636,11 +637,37 @@ private fun LeagueFilterSection(
                         }
                     }
                 }
-
-
-
-
+                Spacer(modifier = Modifier.width(16.dp))
             }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun LeagueMainTabToggle(
+    selectedTab: LeagueTab,
+    onTabSelected: (LeagueTab) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    ButtonGroup(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(48.dp),
+        expandedRatio = 0f,
+        horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
+        overflowIndicator = {}
+    ) {
+        LeagueTab.entries.forEach { tab ->
+            toggleableItem(
+                checked = selectedTab == tab,
+                onCheckedChange = { if (it) onTabSelected(tab) },
+                label = when (tab) {
+                    LeagueTab.STANDINGS -> "Standings"
+                    LeagueTab.STATS -> "Stats"
+                },
+                weight = 1f
+            )
         }
     }
 }

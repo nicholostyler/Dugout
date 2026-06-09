@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.ButtonGroup
 import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -22,7 +24,6 @@ import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.ToggleButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -37,14 +38,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.role
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 import coil3.compose.AsyncImage
@@ -57,12 +54,16 @@ import nicholos.tyler.dugout.model.domain.PitchItem
 import nicholos.tyler.dugout.model.ui.GameSnapshotCardUiModel
 import nicholos.tyler.dugout.model.ui.InningScoreUiModel
 import nicholos.tyler.dugout.model.ui.LinescoreUiModel
+import nicholos.tyler.dugout.model.ui.PlayerUiState
 import nicholos.tyler.dugout.model.ui.TeamTotalUiModel
 import nicholos.tyler.dugout.model.ui.TeamScoreUiModel
 import nicholos.tyler.dugout.ui.components.GameSnapshotCard
+import nicholos.tyler.dugout.ui.components.TitleActionRow
+import androidx.compose.material3.TextButton
 import nicholos.tyler.dugout.ui.theme.DugoutTheme
 import nicholos.tyler.dugout.viewmodel.GameDetailUiState
 import nicholos.tyler.dugout.viewmodel.GameDetailViewModel
+import nicholos.tyler.dugout.viewmodel.PlayerViewModel
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
@@ -74,7 +75,9 @@ import nicholos.tyler.dugout.model.domain.BoxscorePlayer
 import nicholos.tyler.dugout.model.domain.BoxscoreTeam
 import androidx.compose.foundation.Canvas
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.SheetState
+import androidx.compose.material3.SheetValue
+import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import kotlinx.coroutines.launch
@@ -84,10 +87,13 @@ import androidx.compose.foundation.verticalScroll
 @Composable
 fun GameDetailScreen(
     viewModel: GameDetailViewModel,
+    playerViewModel: PlayerViewModel,
     gamePk: Int,
+    onPlayerClick: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val playerUiState by playerViewModel.uiState.collectAsStateWithLifecycle()
 
     LaunchedEffect(gamePk) {
         viewModel.loadGame(gamePk)
@@ -95,6 +101,9 @@ fun GameDetailScreen(
 
     GameDetailContent(
         uiState = uiState,
+        playerUiState = playerUiState,
+        onPlayerPreviewRequested = playerViewModel::loadPlayer,
+        onPlayerClick = onPlayerClick,
         modifier = modifier.fillMaxSize()
     )
 }
@@ -103,6 +112,9 @@ fun GameDetailScreen(
 @Composable
 fun GameDetailContent(
     uiState: GameDetailUiState,
+    playerUiState: PlayerUiState = PlayerUiState(),
+    onPlayerPreviewRequested: (Int) -> Unit = {},
+    onPlayerClick: (Int) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     when {
@@ -152,16 +164,28 @@ fun GameDetailContent(
             var selectedBoxTeam by rememberSaveable { mutableStateOf(BoxTeamFilter.AWAY) }
 
             var selectedPlayForSheet by remember { mutableStateOf<PlayItem?>(null) }
-            val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+            val sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden)
             val scope = rememberCoroutineScope()
+            val previewPlayerId = selectedPlayForSheet?.batterId
+
+            LaunchedEffect(previewPlayerId) {
+                previewPlayerId?.let(onPlayerPreviewRequested)
+            }
 
             if (selectedPlayForSheet != null) {
                 PlayDetailBottomSheet(
                     play = selectedPlayForSheet!!,
+                    playerUiState = playerUiState,
                     sheetState = sheetState,
                     onDismissRequest = {
                         scope.launch { sheetState.hide() }.invokeOnCompletion {
                             selectedPlayForSheet = null
+                        }
+                    },
+                    onShowPlayerDetails = { playerId ->
+                        scope.launch { sheetState.hide() }.invokeOnCompletion {
+                            selectedPlayForSheet = null
+                            onPlayerClick(playerId)
                         }
                     }
                 )
@@ -411,37 +435,31 @@ enum class BoxTeamFilter {
     HOME
 }
 
-@OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun MainTabToggle(
     selectedTab: GameDetailTab,
     onTabSelected: (GameDetailTab) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)
+    ButtonGroup(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(48.dp),
+        expandedRatio = 0f,
+        horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
+        overflowIndicator = {}
     ) {
-        ToggleButton(
-            checked = selectedTab == GameDetailTab.PLAYS,
-            onCheckedChange = { onTabSelected(GameDetailTab.PLAYS) },
-            modifier = Modifier
-                .weight(1f)
-                .semantics { role = Role.Tab },
-            shapes = ButtonGroupDefaults.connectedLeadingButtonShapes()
-        ) {
-            Text("Plays")
-        }
-
-        ToggleButton(
-            checked = selectedTab == GameDetailTab.BOX,
-            onCheckedChange = { onTabSelected(GameDetailTab.BOX) },
-            modifier = Modifier
-                .weight(1f)
-                .semantics { role = Role.Tab },
-            shapes = ButtonGroupDefaults.connectedTrailingButtonShapes()
-        ) {
-            Text("Box")
+        GameDetailTab.entries.forEach { tab ->
+            toggleableItem(
+                checked = selectedTab == tab,
+                onCheckedChange = { if (it) onTabSelected(tab) },
+                label = when (tab) {
+                    GameDetailTab.PLAYS -> "Plays"
+                    GameDetailTab.BOX -> "Box"
+                },
+                weight = 1f
+            )
         }
     }
 }
@@ -462,13 +480,27 @@ fun BoxTeamToggle(
         FilterChip(
             selected = selectedTeam == BoxTeamFilter.AWAY,
             onClick = { onTeamSelected(BoxTeamFilter.AWAY) },
-            label = { Text(awayTeamName) }
+            label = {
+                Text(
+                    text = awayTeamName,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            },
+            leadingIcon = null
         )
 
         FilterChip(
             selected = selectedTeam == BoxTeamFilter.HOME,
             onClick = { onTeamSelected(BoxTeamFilter.HOME) },
-            label = { Text(homeTeamName) }
+            label = {
+                Text(
+                    text = homeTeamName,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            },
+            leadingIcon = null
         )
     }
 }
@@ -512,11 +544,10 @@ fun TeamBoxscoreSection(
                 modifier = Modifier.padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text(
-                    text = "Batting",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
+                TitleActionRow(
+                    title = "Batting",
+                    actionText = "",
+                    onActionClick = {}
                 )
 
                 BattingHeader()
@@ -538,11 +569,10 @@ fun TeamBoxscoreSection(
                 modifier = Modifier.padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text(
-                    text = "Pitching",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
+                TitleActionRow(
+                    title = "Pitching",
+                    actionText = "",
+                    onActionClick = {}
                 )
 
                 PitchingHeader()
@@ -652,8 +682,10 @@ fun BoxscoreStatValue(text: String) {
 @Composable
 fun PlayDetailBottomSheet(
     play: PlayItem,
-    sheetState: androidx.compose.material3.SheetState,
+    playerUiState: PlayerUiState,
+    sheetState: SheetState,
     onDismissRequest: () -> Unit,
+    onShowPlayerDetails: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
     ModalBottomSheet(
@@ -661,65 +693,185 @@ fun PlayDetailBottomSheet(
         sheetState = sheetState,
         modifier = modifier
     ) {
-        Column(
+        PlayerPeekSheetContent(
+            play = play,
+            playerUiState = playerUiState,
+            onShowPlayerDetails = onShowPlayerDetails,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
+                .fillMaxHeight(0.5f)
+                .padding(horizontal = 20.dp, vertical = 16.dp)
+                .verticalScroll(rememberScrollState())
+        )
+    }
+}
+
+@Composable
+private fun PlayerPeekSheetContent(
+    play: PlayItem,
+    playerUiState: PlayerUiState,
+    onShowPlayerDetails: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val player = playerUiState.player?.takeIf { it.id == play.batterId }
+    val playerName = player?.fullName ?: play.batterName ?: "Player"
+    val playerMeta = listOfNotNull(
+        player?.teamName,
+        player?.position?.takeUnless { it == "--" },
+        player?.jerseyNumber?.let { "#$it" }
+    ).joinToString(" • ")
+    val stats = player?.quickStats.orEmpty().take(4)
+
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(18.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Header Info
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            PlayerHeadshot(
+                playerId = play.batterId,
+                contentDescription = "$playerName headshot",
+                modifier = Modifier.size(72.dp)
+            )
+
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                PlayerHeadshot(
-                    playerId = play.batterId,
-                    contentDescription = play.batterName?.let { "$it headshot" } ?: "Player headshot",
-                    modifier = Modifier.size(72.dp)
+                Text(
+                    text = playerName,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
 
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                if (playerMeta.isNotBlank()) {
                     Text(
-                        text = play.event ?: "Play Detail",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold
+                        text = playerMeta,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
+                }
+
+                if (!play.event.isNullOrBlank()) {
                     Text(
-                        text = buildMatchupLine(play.batterName, play.pitcherName),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        text = play.event,
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
             }
+        }
 
+        if (!play.description.isNullOrBlank()) {
             Text(
-                text = play.description ?: "",
+                text = play.description,
                 style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(top = 0.dp)
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
             )
+        }
 
-            // Strike Zone Visual
-            StrikeZone(
-                pitches = play.pitches,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(300.dp)
-                    .padding(horizontal = 32.dp)
-            )
+        Text(
+            text = "Current Season",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold
+        )
 
-            // Pitch List
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(
-                    text = "Pitch Sequence",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                PitchSequenceList(pitches = play.pitches)
+        when {
+            playerUiState.isLoading && player == null -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(72.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(modifier = Modifier.size(28.dp))
+                }
             }
 
-            Spacer(Modifier.height(32.dp))
+            stats.isNotEmpty() -> {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    stats.forEach { stat ->
+                        PlayerPeekStatTile(
+                            label = stat.label,
+                            value = stat.value,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+            }
+
+            playerUiState.error != null -> {
+                Text(
+                    text = "Unable to load current season stats.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+
+            else -> {
+                Text(
+                    text = "No current season stats available.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+
+        TextButton(
+            onClick = { play.batterId?.let(onShowPlayerDetails) },
+            enabled = play.batterId != null,
+            modifier = Modifier.align(Alignment.End)
+        ) {
+            Text("Show details")
+        }
+    }
+}
+
+@Composable
+private fun PlayerPeekStatTile(
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier,
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        tonalElevation = 0.dp
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            Text(
+                text = value,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
         }
     }
 }
@@ -1153,8 +1305,10 @@ private fun GameDetailContentPreview() {
             if (selectedPlayForSheet != null) {
                 PlayDetailBottomSheet(
                     play = selectedPlayForSheet!!,
-                    sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-                    onDismissRequest = { selectedPlayForSheet = null }
+                    playerUiState = PlayerUiState(),
+                    sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden),
+                    onDismissRequest = { selectedPlayForSheet = null },
+                    onShowPlayerDetails = {}
                 )
             }
         }

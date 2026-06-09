@@ -24,6 +24,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import nicholos.tyler.dugout.ui.components.TitleActionRow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -74,22 +75,11 @@ fun DivisionStandingsCard(
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
         if (showHeaderAction && onHeaderActionClick != null) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-
-                TextButton(onClick = onHeaderActionClick) {
-                    Text(headerActionText)
-                }
-            }
+            TitleActionRow(
+                title = title,
+                actionText = headerActionText,
+                onActionClick = onHeaderActionClick
+            )
         } else {
             Text(
                 text = title,

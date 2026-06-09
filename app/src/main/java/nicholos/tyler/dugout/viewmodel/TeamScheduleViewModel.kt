@@ -28,7 +28,7 @@ enum class ScheduleView {
 
 data class TeamScheduleUiState(
     val isLoading: Boolean = false,
-    val selectedView: ScheduleView = ScheduleView.List,
+    val selectedView: ScheduleView = ScheduleView.Calendar,
     val gameRows: List<GameCardUiModel> = emptyList(),
     val selectedGamePk: Int? = null,
     val error: String? = null
